@@ -54,7 +54,8 @@ This file is the **portable substitute** for the Claude Code skills referenced i
 ## Commits & branches
 
 - **Conventional Commits**: `feat(scope): …`, `fix(scope): …`, `chore(scope): …`, `docs(scope): …`, `test(scope): …`, `refactor(scope): …`, `perf(scope): …`. Scope is the bounded context (`auth`, `reports`, etc.) or `infra`.
-- **One logical change per commit.** Pre-commit hook runs `pnpm lint --fix` and `pnpm typecheck`.
+- **One logical change per commit.** Run `pnpm verify` before every commit. (A pre-commit hook to enforce this is a deliberate non-goal at M1 — wire `simple-git-hooks` or `lefthook` once the team has agreed on tooling, then add it as its own commit and update this section.)
+- **`pnpm verify` is the green-light gate, not a ship gate.** It runs `lint && typecheck && test && openapi:check`. It does **not** run `pnpm build` (which uses webpack via `nest build` and can fail in ways `tsc --noEmit` does not). Smoke-boot the compiled app at least once per milestone (`pnpm build && node dist/main.js`) — CI's container-build job catches this for you on every PR.
 - **Milestone tags:** `m1-complete`, `m2-complete`, …, annotated tags with the STATE.md "what's done" excerpt as the message.
 
 ## AI orchestration (M12+)
