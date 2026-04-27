@@ -13,8 +13,8 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
 - [x] `pnpm openapi:check` passes
 - [x] Structured JSON logs to stdout with `req.id` (UUID) on every request and matching `x-request-id` response header
 - [x] `pnpm verify` exits 0
-- [ ] `docker compose up -d` brings up `wdc_postgres`, `wdc_redis`, `wdc_minio` all `Up (healthy)`; `/health/ready` then returns 200 with both deps `up`. **Currently blocked by a Docker Desktop DNS-resolver glitch (`lookup registry-1.docker.io: no such host`); user is restarting Docker. After restart, run `docker compose down -v` first to clear the orphaned `wdc_postgres` container left by the partial pull.**
-- [ ] Commit tagged `m1-complete`
+- [x] `docker compose up -d` brings up `wdc_postgres`, `wdc_redis`, `wdc_minio` all `Up (healthy)`; `minio-init` created the `wdc-artefacts` bucket; `/health/ready` returns 200 with postgres `up` (28ms) and redis `up` (2ms)
+- [x] Commit tagged `m1-complete`
 
 ## M2 — Schema & RLS
 - [ ] All tables created via numbered Drizzle migrations under `drizzle/`

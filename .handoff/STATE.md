@@ -1,8 +1,8 @@
 # Build state
 
 **Last updated:** 2026-04-27 by `claude-code` (opus 4.7)
-**Current milestone:** 1 — Skeleton & infra
-**Status:** in_progress (1 gate left: docker compose end-to-end after Docker Desktop restart)
+**Current milestone:** 2 — Schema & RLS (M1 complete, tagged `m1-complete`)
+**Status:** ready to start M2
 
 ## What's done
 
@@ -21,28 +21,18 @@
 
 ## What's in flight
 
-- **The only outstanding M1 gate:** `docker compose up -d` for **postgres** and **minio**.
-  - Redis is up and verified.
-  - The pgvector + minio image pulls failed earlier with `lookup registry-1.docker.io: no such host` — a Docker Desktop DNS-resolver glitch.
-  - User is restarting Docker Desktop. After it comes back up, run `docker compose up -d` and confirm all three are `healthy`. Then re-run `curl http://127.0.0.1:3100/health/ready` and confirm postgres reports `up`.
+Nothing — M1 is complete. M2 has not started.
 
 ## Next concrete actions (resume here)
 
-1. **After Docker Desktop restart**, clear leftover state from the partial pull:
-   `docker compose down -v` (removes the orphan `wdc_postgres` container and its volume — earlier compose flagged it).
-2. `docker compose up -d` — confirm `wdc_postgres`, `wdc_redis`, `wdc_minio` are all `Up (healthy)`. The `minio-init` one-shot service should also have run and created the `wdc-artefacts` bucket; verify with `docker compose logs minio-init` (look for `mb local/wdc-artefacts`).
-3. Boot the API: `set -a; source .env.local; set +a; node dist/main.js` (or `pnpm dev`). Hit `http://127.0.0.1:3100/health/ready` — expect 200 with both postgres and redis `up`.
-4. Tick the last two boxes in `.handoff/CHECKLIST.md` under M1.
-5. Append a short note to `.handoff/SESSION-LOG.md` confirming the docker leg is green.
-6. Tag the commit: `git tag -a m1-complete -m "M1 — Skeleton & infra"`.
-7. Begin **M2 — Schema & RLS**:
-   - Design the canonical schema for: `lgas`, `wards`, `users`, `forms`, `form_versions`, `reports`, `report_op_log` (append-only), `attachments`, `audit_events`, `delivery_attempts`, `investigations`, `investigation_evidence`, `messages`, `embeddings`. ~14 tables.
-   - First migration `drizzle/0001_init.sql` creates tables.
-   - Second migration `drizzle/0002_rls.sql` enables RLS and writes policies for `secretary` / `coordinator` / `director` / `system`.
-   - Seed script `scripts/seed.ts` populates 23 LGAs and 255 ward stubs (use realistic Kaduna names; flag in ARCHITECTURE.md).
-   - RLS denial integration tests via Testcontainers — every role × every table.
-   - All under coverage gate ≥ 80% lines for services.
-   - Commit per logical step; tag `m2-complete` when all gates green.
+Begin **M2 — Schema & RLS**:
+1. Design the canonical schema for: `lgas`, `wards`, `users`, `forms`, `form_versions`, `reports`, `report_op_log` (append-only), `attachments`, `audit_events`, `delivery_attempts`, `investigations`, `investigation_evidence`, `messages`, `embeddings`. ~14 tables.
+2. First migration `drizzle/0001_init.sql` creates tables.
+3. Second migration `drizzle/0002_rls.sql` enables RLS and writes policies for `secretary` / `coordinator` / `director` / `system`. App sets `app.current_user_id`, `app.current_role`, `app.current_lga_id`, `app.current_ward_id` via `SET LOCAL` per request.
+4. Seed script `scripts/seed.ts` populates 23 LGAs and 255 ward stubs (realistic Kaduna names; flag in ARCHITECTURE.md as "to be replaced by user-supplied CSV").
+5. RLS denial integration tests via Testcontainers — every role × every table.
+6. All under coverage gate ≥ 80% lines for services.
+7. Commit per logical step; tag `m2-complete` when all gates green.
 
 ## Open questions / decisions deferred
 

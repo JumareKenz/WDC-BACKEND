@@ -29,3 +29,22 @@ Append-only. Each session writes one entry when it stops.
 - The minio `pgvector/pgvector:pg16` image is the canonical one for Postgres-16 + pgvector. If pulls misbehave, `pgvector/pgvector:pg16-trixie` is the same content under a different tag.
 - ESLint flat config: I avoided spreading `tseslint.configs.recommended.rules` because v8's recommended-config shape varies between flat and legacy. Explicit rules only — see `eslint.config.mjs`.
 - **The `.handoff/` discipline is load-bearing.** This build will span many sessions. STATE.md is the contract; if it ever reads "see commits" or "see last conversation", that's a failure. Always write it for a stranger.
+
+---
+
+## 2026-04-27 (continued) — claude-code (opus 4.7) — M1 closeout
+
+**Worked on:** finishing the last M1 gate after the user restarted Docker Desktop.
+
+**What ran:**
+- `docker compose down -v` (cleared the leftover redis volume from the previous partial up).
+- `docker compose up -d` first attempt failed with a name conflict (`wdc_postgres` orphan from the original partial pull, surviving the down -v because it was already detached from the project at that point). `docker rm -f wdc_postgres` then `docker compose up -d --remove-orphans` succeeded.
+- All three services healthy. `minio-init` ran and created `wdc-artefacts`.
+- `node dist/main.js` boots; `/health/live` 200; `/health/ready` 200 with postgres `up` (28ms) and redis `up` (2ms).
+
+**Tag:** `m1-complete` annotated to the head commit.
+
+**Notes for next agent (M2):**
+- If `docker compose up -d` ever errors with "container name already in use" after a `down -v`, the offending container was created when it was still attached to a different compose project state. `docker rm -f <name>` plus `--remove-orphans` on the next `up` is the fix; don't blindly `docker system prune`.
+- Use `docker compose logs minio-init` to confirm bucket creation at every fresh up — if it didn't run, `mc alias` or the bucket `mb` step likely failed silently and S3 calls in M8 will return NoSuchBucket.
+- Both health indicators use Terminus `HealthCheckError` to fail; replicate this pattern for any future indicator (Postmark, Termii, Twilio, Anthropic) when M10+ adds them.
