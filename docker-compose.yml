@@ -1,0 +1,81 @@
+# Local-development infra for the WDC backend.
+#
+# Ports avoid the standard 5432/6379/9000 to coexist with other dev stacks on
+# the same machine — see ADR-005 in .handoff/DECISIONS.md.
+#
+# Bring it up: `docker compose up -d`
+# Tear it down: `docker compose down -v`
+
+name: wdc
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: wdc_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wdc
+      POSTGRES_USER: wdc
+      POSTGRES_PASSWORD: wdc
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - '5433:5432'
+    volumes:
+      - wdc_pg_data:/var/lib/postgresql/data
+      - ./drizzle/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U wdc -d wdc']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: wdc_redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6380:6379'
+    volumes:
+      - wdc_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: wdc_minio
+    restart: unless-stopped
+    command: ['server', '/data', '--console-address', ':9101']
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - '9100:9000'
+      - '9101:9101'
+    volumes:
+      - wdc_minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/wdc-artefacts &&
+      mc anonymous set none local/wdc-artefacts;
+      "
+
+volumes:
+  wdc_pg_data:
+  wdc_redis_data:
+  wdc_minio_data:
