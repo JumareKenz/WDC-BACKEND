@@ -1,0 +1,50 @@
+openapi: 3.1.0
+info:
+  title: WDC Backend
+  version: 0.1.0
+  description: |
+    Kaduna State WDC Digital Reporting Platform — REST API.
+
+    M1 milestone: only health endpoints are exposed. Subsequent milestones
+    add auth, users, wards, forms, reports, sync, messaging, investigations,
+    audit, ai, and notifications under `/api/v1/`.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+paths:
+  /health/live:
+    get:
+      summary: Liveness probe
+      operationId: healthLive
+      tags: [health]
+      responses:
+        '200':
+          description: Process is up
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, uptime]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  uptime:
+                    type: number
+                    description: Process uptime in seconds
+  /health/ready:
+    get:
+      summary: Readiness probe (checks Postgres + Redis)
+      operationId: healthReady
+      tags: [health]
+      responses:
+        '200':
+          description: All dependencies responsive
+        '503':
+          description: One or more dependencies unhealthy
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
