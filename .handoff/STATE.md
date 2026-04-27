@@ -28,12 +28,14 @@
 
 ## Next concrete actions (resume here)
 
-1. **After Docker Desktop restart**: `docker compose up -d` — confirm `wdc_postgres`, `wdc_redis`, `wdc_minio` are all `Up (healthy)`. Confirm minio-init created the `wdc-artefacts` bucket.
-2. Boot the API: `set -a; source .env.local; set +a; node dist/main.js` (or `pnpm dev`). Hit `http://127.0.0.1:3100/health/ready` — expect 200 with both postgres and redis `up`.
-3. Tick the last two boxes in `.handoff/CHECKLIST.md` under M1.
-4. Append a short note to `.handoff/SESSION-LOG.md` confirming the docker leg is green.
-5. Tag the commit: `git tag -a m1-complete -m "M1 — Skeleton & infra"`.
-6. Begin **M2 — Schema & RLS**:
+1. **After Docker Desktop restart**, clear leftover state from the partial pull:
+   `docker compose down -v` (removes the orphan `wdc_postgres` container and its volume — earlier compose flagged it).
+2. `docker compose up -d` — confirm `wdc_postgres`, `wdc_redis`, `wdc_minio` are all `Up (healthy)`. The `minio-init` one-shot service should also have run and created the `wdc-artefacts` bucket; verify with `docker compose logs minio-init` (look for `mb local/wdc-artefacts`).
+3. Boot the API: `set -a; source .env.local; set +a; node dist/main.js` (or `pnpm dev`). Hit `http://127.0.0.1:3100/health/ready` — expect 200 with both postgres and redis `up`.
+4. Tick the last two boxes in `.handoff/CHECKLIST.md` under M1.
+5. Append a short note to `.handoff/SESSION-LOG.md` confirming the docker leg is green.
+6. Tag the commit: `git tag -a m1-complete -m "M1 — Skeleton & infra"`.
+7. Begin **M2 — Schema & RLS**:
    - Design the canonical schema for: `lgas`, `wards`, `users`, `forms`, `form_versions`, `reports`, `report_op_log` (append-only), `attachments`, `audit_events`, `delivery_attempts`, `investigations`, `investigation_evidence`, `messages`, `embeddings`. ~14 tables.
    - First migration `drizzle/0001_init.sql` creates tables.
    - Second migration `drizzle/0002_rls.sql` enables RLS and writes policies for `secretary` / `coordinator` / `director` / `system`.

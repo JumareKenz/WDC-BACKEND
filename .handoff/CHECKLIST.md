@@ -3,18 +3,17 @@
 Every milestone is "done" only when all its gates are ticked AND `pnpm verify` exits 0. The first unchecked box is where the next agent resumes.
 
 ## M1 — Skeleton & infra
-- [~] `docker compose up -d` brings up postgres, redis, minio (non-conflicting ports) — **partial**: redis up & verified; postgres + minio pulls blocked by Docker Desktop DNS resolver (see SESSION-LOG 2026-04-27). Re-run after restarting Docker Desktop.
 - [x] `pnpm install` succeeds (one ignored-build-scripts warning is informational, not an error)
 - [x] `pnpm build` produces `dist/main.js`; `node dist/main.js` boots
 - [x] `curl http://127.0.0.1:3100/health/live` returns 200 with `{"status":"ok","uptime":...}`
-- [x] `curl http://127.0.0.1:3100/health/ready` returns 503 (postgres down) with structured `{ info, error, details }` body — gate is "responds correctly", not "all deps up"
+- [x] `curl http://127.0.0.1:3100/health/ready` returns 503 with structured `{ info, error, details }` body when postgres is down — gate is "responds correctly to dep state", not "all deps up"
 - [x] `pnpm test` — 9 tests passing across 3 spec files
 - [x] `pnpm lint` passes (zero warnings, `--max-warnings=0`)
 - [x] `pnpm typecheck` passes
 - [x] `pnpm openapi:check` passes
 - [x] Structured JSON logs to stdout with `req.id` (UUID) on every request and matching `x-request-id` response header
 - [x] `pnpm verify` exits 0
-- [ ] `docker compose up -d` re-verified end-to-end after Docker Desktop restart (gates this milestone fully complete)
+- [ ] `docker compose up -d` brings up `wdc_postgres`, `wdc_redis`, `wdc_minio` all `Up (healthy)`; `/health/ready` then returns 200 with both deps `up`. **Currently blocked by a Docker Desktop DNS-resolver glitch (`lookup registry-1.docker.io: no such host`); user is restarting Docker. After restart, run `docker compose down -v` first to clear the orphaned `wdc_postgres` container left by the partial pull.**
 - [ ] Commit tagged `m1-complete`
 
 ## M2 — Schema & RLS
