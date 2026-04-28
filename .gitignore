@@ -35,3 +35,6 @@ Thumbs.db
 openapi.generated.yaml
 *.local
 tmp/
+
+# secrets — JWT keypairs etc., dev-only; prod keys live in Vault / AWS SM
+secrets/

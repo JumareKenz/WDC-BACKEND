@@ -18,6 +18,14 @@ const ConfigSchema = z.object({
   reports: z.object({
     sealGraceDays: z.coerce.number().int().nonnegative().default(7),
   }),
+  auth: z.object({
+    jwtPrivateKeyPath: z.string().min(1),
+    jwtPublicKeyPath: z.string().min(1),
+    jwtAccessTtl: z.string().default('15m'),
+    jwtRefreshTtl: z.string().default('7d'),
+    argon2Pepper: z.string().min(32, 'ARGON2_PEPPER must be ≥ 32 chars'),
+    totpIssuer: z.string().default('WDC Kaduna'),
+  }),
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
@@ -40,6 +48,14 @@ export function loadConfig(): AppConfig {
     },
     reports: {
       sealGraceDays: process.env.REPORT_SEAL_GRACE_DAYS,
+    },
+    auth: {
+      jwtPrivateKeyPath: process.env.JWT_PRIVATE_KEY_PATH,
+      jwtPublicKeyPath: process.env.JWT_PUBLIC_KEY_PATH,
+      jwtAccessTtl: process.env.JWT_ACCESS_TTL,
+      jwtRefreshTtl: process.env.JWT_REFRESH_TTL,
+      argon2Pepper: process.env.ARGON2_PEPPER,
+      totpIssuer: process.env.TOTP_ISSUER,
     },
   };
 
