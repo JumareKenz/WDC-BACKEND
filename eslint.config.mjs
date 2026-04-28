@@ -48,5 +48,13 @@ export default [
       eqeqeq: ['error', 'always', { null: 'ignore' }],
     },
   },
+  {
+    // Tests and one-shot scripts know their fixtures — non-null assertions
+    // on rows we just inserted are clearer than chained optional-chains.
+    files: ['tests/**/*.ts', 'scripts/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
+    },
+  },
   prettierConfig,
 ];

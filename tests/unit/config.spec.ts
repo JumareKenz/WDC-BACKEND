@@ -15,6 +15,8 @@ describe('loadConfig', () => {
 
   beforeEach(() => {
     for (const k of Object.keys(requiredEnv)) delete process.env[k];
+    delete process.env.PORT;
+    delete process.env.LOG_LEVEL;
     Object.assign(process.env, requiredEnv);
   });
 
