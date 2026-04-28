@@ -10,8 +10,10 @@ import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
 import { POSTGRES_POOL } from '../../infra/postgres/postgres.module';
 import { REDIS_CLIENT } from '../../infra/redis/redis.module';
+import { Public } from '../../common/auth/public.decorator';
 
 @ApiTags('health')
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(
