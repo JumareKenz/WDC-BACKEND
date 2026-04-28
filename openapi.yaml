@@ -12,6 +12,91 @@ servers:
   - url: http://localhost:3000
     description: Local development
 paths:
+  /api/v1/auth/sign-in/mobile:
+    post:
+      summary: Mobile sign-in (phone + PIN)
+      operationId: authSignInMobile
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, pin, deviceId]
+              properties:
+                phone: { type: string, example: '+2348012345678' }
+                pin: { type: string, pattern: '^\d{6}$' }
+                deviceId: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        '200': { description: token pair, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '401': { description: invalid credentials }
+        '422': { description: validation error }
+  /api/v1/auth/sign-in/console:
+    post:
+      summary: Console sign-in (email + password + TOTP, director only)
+      operationId: authSignInConsole
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, totp, deviceId]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 12, maxLength: 256 }
+                totp: { type: string, pattern: '^\d{6}$' }
+                deviceId: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        '200': { description: token pair, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '401': { description: invalid credentials }
+        '422': { description: validation error }
+  /api/v1/auth/refresh:
+    post:
+      summary: Rotate refresh token; returns a fresh access+refresh pair
+      operationId: authRefresh
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken, deviceId]
+              properties:
+                refreshToken: { type: string, minLength: 32, maxLength: 256 }
+                deviceId: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        '200': { description: new token pair, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '401': { description: token unrecognised, expired, mismatched device, or reused }
+  /api/v1/auth/sign-out:
+    post:
+      summary: Revoke all refresh tokens for the calling device
+      operationId: authSignOut
+      tags: [auth]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId]
+              properties:
+                deviceId: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        '200':
+          description: count of refresh tokens revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revoked]
+                properties:
+                  revoked: { type: integer, minimum: 0 }
+        '401': { description: missing or invalid bearer }
   /health/live:
     get:
       summary: Liveness probe
@@ -48,3 +133,12 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    TokenResponse:
+      type: object
+      required: [accessToken, accessExpiresIn, refreshToken, refreshExpiresAt]
+      properties:
+        accessToken: { type: string, description: 'JWT (RS256), 15min default TTL' }
+        accessExpiresIn: { type: integer, description: 'Seconds until access expires' }
+        refreshToken: { type: string, description: 'Opaque token; rotated on use' }
+        refreshExpiresAt: { type: string, format: date-time }

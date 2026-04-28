@@ -69,3 +69,23 @@ Append-only. Each session writes one entry when it stops.
 - **bytea via Drizzle:** pg-core doesn't ship a `bytea` column. We use a `customType` in `src/infra/postgres/schema/_types.ts`. Anything storing `pgcrypto`-encrypted ciphertext or hashes uses this type.
 - **23 LGAs are the real Kaduna list with their canonical Hausa names.** 255 wards are stubs (`<CODE>-W<NN>`) flagged in ARCHITECTURE.md §10 #1. When the user supplies the real ward CSV, replace `scripts/seed.ts` (or add `seeds/wards.csv` and read it) — the LGA codes / counts in the existing seed match the official list, so the CSV should slot in cleanly.
 - **wdc_app role grants** are `SELECT/INSERT/UPDATE/DELETE` on all tables + `USAGE/SELECT` on sequences. `ALTER DEFAULT PRIVILEGES` covers future migrations that create new tables. The `wdc_ro` role (created in `drizzle/init/01_extensions.sql`) is for the AI Assistant's structured retrieval in M12 — read-only, gated via `SET ROLE wdc_ro`.
+
+---
+
+## 2026-04-28 (continued) — claude-code (opus 4.7) — M3 Auth
+
+**Worked on:** sign-in (mobile + console), JWT issuance with RS256, refresh rotation with reuse-detection, Argon2id, TOTP, audit chain, global guards, 6 integration tests.
+
+**Tests:** 46 passing (40 unit + 6 auth integration). `pnpm verify` GREEN. RLS integration tests still pass; M3 didn't touch them.
+
+**Stopped because:** M3 done; M4 (Users & onboarding) is next.
+
+**Notes for next agent (M4):**
+
+- **Always use explicit `@Inject(Token)` on constructor params**, even when the type-emit "should" handle it. NestJS's DI on Vitest's `Test.createTestingModule` route can fail to resolve services that work fine when bootstrapped via `NestFactory.create` — types like `ConfigService<AppConfig, true>`, `JwtService`, `Reflector`, and even your own services come through as undefined and throw `Cannot read properties of undefined (reading '...')` at first call. The fix is `@Inject(ConfigService) private readonly config: ConfigService<AppConfig, true>`. This is now the project convention; mirror it in M4. Cost: a few extra characters per parameter; benefit: deterministic DI across runtimes.
+- **Reuse-detection on refresh tokens must commit the chain-kill before throwing.** A throw inside `withRlsTransaction` rolls back the surrounding txn, so any "revoke all device tokens" UPDATE issued in the same txn is discarded. The fix in `token.service.ts` returns a `{ reuse: ... }` sentinel from the txn, then runs `revokeAllForDevice` in its own committed txn before throwing the 401. Same pattern applies to anything where you need a side effect to persist before a failure response.
+- **Terminus indicators throw `HealthCheckError` to fail; controllers throw `UnauthorizedException` for auth failures.** Don't return `{status: 'failed'}` from a service — Nest can't translate that to a 401 / 503.
+- **Decoy argon2 hash for unknown-user paths.** Mobile sign-in always runs argon verify even on user-miss with a hardcoded decoy hash so timing is uniform between "no user" and "wrong PIN". Same pattern in console for unknown email + bad password. THREATS #11.
+- **Audit canonical JSON is load-bearing for M11.** The chain verifier in M11 will regenerate `sha256(prev_hash || canonical_json(event))` and compare hashes; if `canonicalJson()` ever changes its output for the same input, the entire chain becomes "tampered". Don't refactor that function casually. Tests under `tests/unit/audit-canonical.spec.ts` lock down the behaviour.
+- **The dev TOTP DEK** (`app.totp_dek` GUC) isn't set anywhere yet. Console sign-in for a director with a TOTP secret will throw at the `pgp_sym_decrypt` call until M4 wires the dev DEK into the connection setup. That's why no console-flow integration test exists yet — it's a deliberate M4 follow-up.
+- **`JWT_PUBLIC_KEY_PATH` and `JWT_PRIVATE_KEY_PATH` are required** — config validation will reject startup if they're empty. `pnpm gen:jwt-keys` writes them to `secrets/` (gitignored). Production reads from Vault per RUNBOOK §4.

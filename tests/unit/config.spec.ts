@@ -8,6 +8,9 @@ const requiredEnv = {
   S3_ACCESS_KEY: 'minioadmin',
   S3_SECRET_KEY: 'minioadmin',
   S3_BUCKET: 'wdc-artefacts',
+  JWT_PRIVATE_KEY_PATH: './secrets/jwt-private.pem',
+  JWT_PUBLIC_KEY_PATH: './secrets/jwt-public.pem',
+  ARGON2_PEPPER: 'a'.repeat(32),
 };
 
 describe('loadConfig', () => {

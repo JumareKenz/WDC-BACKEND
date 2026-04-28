@@ -29,12 +29,15 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
 - [ ] Commit tagged `m2-complete`
 
 ## M3 — Auth
-- [ ] Sign-in (email+password for console, phone+PIN for mobile)
-- [ ] Refresh-token rotation (7d, hashed-at-rest, device-bound for mobile)
-- [ ] TOTP 2FA mandatory for `director` role
-- [ ] Argon2id PIN hashing with per-user salt + per-deployment pepper
-- [ ] RBAC guards (`@Roles()` decorator) + RLS context-setter middleware
-- [ ] Failed sign-ins, OTP timeouts, RLS denials logged to audit
+- [x] Sign-in: console (email+password+TOTP director-only), mobile (phone+PIN)
+- [x] Refresh-token rotation: 15min RS256 access JWT; 7d refresh hashed-at-rest in `refresh_tokens`; device-bound; `rotated_from_id` chain; reuse-detection revokes the whole device chain (in a separate committed txn so the kill survives the throw)
+- [x] TOTP 2FA mandatory for `director` (otplib, ±1 step window)
+- [x] Argon2id PIN+password hashing with per-user salt + 32-char per-deployment pepper from secrets manager
+- [x] RBAC guards: global `JwtAuthGuard` + `RolesGuard`; `@Public()` opt-out; `@Roles()` for endpoint-level role gating; `rlsContextFromRequest()` builds the RLS context from a verified JWT for service-layer DB calls
+- [x] Failed sign-ins, OTP failures, sign-outs all written to hash-chained `audit_events` (canonical-JSON + sha256, with explicit GENESIS for the first row)
+- [x] `/auth/sign-in/{mobile,console}`, `/auth/refresh`, `/auth/sign-out` endpoints
+- [x] OpenAPI updated; `pnpm openapi:check` reports 6 paths
+- [x] `pnpm verify` exits 0 — 46 tests pass (40 unit + 6 auth integration)
 - [ ] Commit tagged `m3-complete`
 
 ## M4 — Users & onboarding

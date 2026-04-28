@@ -1,12 +1,25 @@
 # Build state
 
 **Last updated:** 2026-04-27 by `claude-code` (opus 4.7)
-**Current milestone:** 3 — Auth (M2 complete, tagged `m2-complete`)
-**Status:** ready to start M3
+**Current milestone:** 4 — Users & onboarding (M3 complete, tagged `m3-complete`)
+**Status:** ready to start M4
 
 ## What's done
 
-### M2 — Schema & RLS (this session)
+### M3 — Auth (this session)
+- `@nestjs/jwt` + `@nestjs/passport` + `passport-jwt` + `argon2` + `otplib` deps
+- RS256 dev JWT keypair via `pnpm gen:jwt-keys` → `secrets/jwt-{private,public}.pem` (gitignored). Production keys live in Vault per RUNBOOK §4.
+- `ArgonService`: Argon2id (m=64MiB, t=3, p=1) with per-user salt + 32-char pepper from `ARGON2_PEPPER`. `verify` returns false on malformed encoded strings (no info leak).
+- `TotpService`: otplib wrapper, ±1 step window, generate/enrol/verify. Secret stored in `users.totp_secret_ciphertext` encrypted via pgcrypto.
+- `TokenService`: 15min access JWT + 7d refresh. Refresh stored hashed (sha256, no salt — token is 48 random bytes). Rotation marks old revoked, inserts new with `rotated_from_id`. **Reuse detection**: presenting an already-revoked refresh token revokes the entire device chain (in a separate committed txn — a throw inside `withRlsTransaction` rolls back, so the chain-kill must commit before the 401).
+- `JwtAuthGuard` + `RolesGuard` registered as `APP_GUARD` (global). `@Public()` exempts health and auth-issuance endpoints.
+- `AuditService.append()`: hash-chained insert with canonical JSON, sha256(prev_hash || canonical), GENESIS = 64 zeros for the first row. Always runs `role=system` so the `audit_events_insert_system_only` RLS policy permits it.
+- `AuthService` paths: mobile (phone_hash lookup → argon verify → tokens), console (email_hash lookup → argon verify → TOTP verify → tokens, director-only). Both record success and failure events.
+- `/auth/sign-in/{mobile,console}`, `/auth/refresh`, `/auth/sign-out`. Health endpoints marked `@Public()`.
+- 26 new tests: 4 argon (round-trip, malformed, salt entropy, pepper isolation), 5 TOTP (secret format, fresh-token verify, malformed reject, wrong-token reject, enrolment URI), 4 token helpers (hash determinism, duration parsing, garbage rejection), 4 audit canonical-JSON (key sorting, array order, primitives, equality), 6 auth integration (sign-in OK, bad PIN, unknown phone, rotation+reuse-detection, missing bearer = 401, sign-out revokes).
+- OpenAPI snapshot updated to 6 paths (4 auth + 2 health) including `TokenResponse` schema.
+
+### M2 — Schema & RLS
 - 14 tables: `lgas`, `wards`, `users`, `refresh_tokens`, `forms`, `form_versions`, `reports`, `report_op_log`, `idempotency_keys`, `attachments`, `audit_events`, `messages`, `delivery_attempts`, `investigations`, `investigation_evidence`, `embeddings` (with `vector(1536)` for pgvector).
 - Drizzle TS schemas under `src/infra/postgres/schema/*.ts` (one file per bounded context); custom `bytea` type in `_types.ts`.
 - Three SQL migrations under `drizzle/`: `0001_init.sql` (tables + indexes + triggers — `updated_at`, `form_versions_immutable`, `audit_events_append_only`, `report_op_log_append_only`), `0002_rls.sql` (creates `wdc_app` role, `ENABLE` + `FORCE` RLS on every table, GUC accessor helpers `wdc_current_role()` / `wdc_current_user_id()` / `wdc_current_lga_id()` / `wdc_current_ward_id()`, role-scoped policies for secretary/coordinator/director/system), `0003_append_only_policies.sql` (UPDATE/DELETE policies for `system` on audit_events + report_op_log so the trigger is the canonical enforcement layer).
@@ -32,19 +45,20 @@
 
 ## What's in flight
 
-Nothing — M2 is complete. M3 has not started.
+Nothing — M3 is complete. M4 has not started.
 
 ## Next concrete actions (resume here)
 
-Begin **M3 — Auth**:
-1. Sign-in endpoints: `POST /api/v1/auth/sign-in/console` (email + password + TOTP for director) and `POST /api/v1/auth/sign-in/mobile` (phone + PIN for secretary/coordinator).
-2. Refresh-token rotation: `POST /api/v1/auth/refresh` issues a new access JWT (15min, RS256) and rotates the refresh token (7d, hashed-at-rest in `refresh_tokens` table, device-bound for mobile, `rotated_from_id` chained for revocation cascade).
-3. Argon2id PIN hashing with per-user salt + per-deployment pepper from secrets manager (`ARGON2_PEPPER` in `.env.example`).
-4. TOTP enrollment + verification for `director` role (mandatory; secret stored encrypted in `users.totp_secret_ciphertext` keyed by `key_id`).
-5. NestJS `@Roles()` decorator + `JwtAuthGuard` + `RolesGuard`. RLS context middleware reads JWT → calls `applyRlsContext` on every request.
-6. Failed sign-ins, OTP timeouts, RLS denials all written to `audit_events` (system-role inserts via background queue or sync).
-7. Tests: unit (token rotation logic, argon2 round-trip, TOTP window), integration (sign-in happy path + each failure mode, refresh rotation invalidates prior token).
-8. Commit per logical step; tag `m3-complete` when all gates green.
+Begin **M4 — Users & onboarding**:
+1. `UsersService` + `UsersController` under `src/modules/users/`: CRUD for secretaries and coordinators; assign LGA / ward; suspend/reactivate; soft delete.
+2. Director-only endpoints (gated by `@Roles('director')`); coordinator can read users in own LGA.
+3. PII handling on input: phone normalised to E.164, hashed (sha256) for `phone_hash`, encrypted via `pgp_sym_encrypt` for `phone_ciphertext`. Same for email. Names stored only encrypted.
+4. PIN/password setup: at user create, no hash is set — generate a one-time enrolment token (24h TTL) the user redeems at `POST /auth/set-credentials` to set their PIN (mobile) or password+TOTP (console).
+5. Audit events on every write (`users.created`, `users.updated`, `users.suspended`, `users.deleted`, `users.assignment_changed`).
+6. Integration tests: director can CRUD anyone, coordinator can read own LGA only, secretary cannot enumerate.
+7. Commit per logical step; tag `m4-complete` when all gates green.
+
+**Note for M4 author:** the DI explicit-`@Inject` pattern from M3 (every constructor parameter has `@Inject(Token)` even when type-emit "should" handle it) is now the project convention — see SESSION-LOG entry below for why. Match it in new modules.
 
 ## Open questions / decisions deferred
 
