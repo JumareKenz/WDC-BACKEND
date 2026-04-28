@@ -22,8 +22,9 @@
     "openapi:generate": "tsx scripts/openapi-generate.ts",
     "openapi:check": "tsx scripts/openapi-check.ts",
     "drizzle:generate": "drizzle-kit generate",
-    "drizzle:migrate": "drizzle-kit migrate",
+    "drizzle:migrate": "tsx scripts/migrate.ts",
     "drizzle:studio": "drizzle-kit studio",
+    "seed": "tsx scripts/seed.ts",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm openapi:check"
   },
   "dependencies": {
