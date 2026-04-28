@@ -34,3 +34,4 @@ Thumbs.db
 # generated
 openapi.generated.yaml
 *.local
+tmp/

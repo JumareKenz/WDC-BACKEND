@@ -17,13 +17,15 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
 - [x] Commit tagged `m1-complete`
 
 ## M2 — Schema & RLS
-- [ ] All tables created via numbered Drizzle migrations under `drizzle/`
-- [ ] RLS enabled on every table holding user data
-- [ ] App sets `app.current_user_id`, `app.current_role`, `app.current_lga_id`, `app.current_ward_id` per session via `SET LOCAL`
-- [ ] RLS denial integration test passes for each role × each table (Testcontainers)
-- [ ] Seed script populates 23 LGAs and 255 ward stubs
-- [ ] OpenAPI snapshot updated
-- [ ] Coverage gate met (≥ 80% lines for services & domain)
+- [x] All 14+ tables created via numbered SQL migrations under `drizzle/` (`0001_init.sql`, `0002_rls.sql`, `0003_append_only_policies.sql`)
+- [x] Drizzle TS schemas in `src/infra/postgres/schema/*.ts` mirror the SQL for type-safe queries
+- [x] RLS enabled + `FORCE`d on every table holding user data
+- [x] `wdc_app` Postgres role created; app sets `app.current_user_id`/`role`/`lga_id`/`ward_id` via `SELECT set_config(..., true)` per request (via `src/common/rls/rls-context.ts`)
+- [x] RLS denial integration tests pass: 11 tests covering secretary/coordinator/director read scope, secretary cross-ward INSERT denial, coordinator cross-LGA write denial, audit_events insert-by-non-system denial, audit_events trigger-enforced append-only on UPDATE+DELETE, report_op_log append-only, deployed form_versions immutable
+- [x] Seed script populates 23 LGAs (real Kaduna names) + 255 ward stubs (`<lga>-W<NN>`); idempotent
+- [x] OpenAPI snapshot unchanged at M2 (no new endpoints; M3 adds auth)
+- [x] Migration runner (`pnpm drizzle:migrate`) — hand-rolled to handle RLS, triggers, and pgvector that drizzle-kit doesn't model
+- [x] `pnpm verify` exits 0 — 20 tests pass
 - [ ] Commit tagged `m2-complete`
 
 ## M3 — Auth

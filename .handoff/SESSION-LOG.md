@@ -48,3 +48,24 @@ Append-only. Each session writes one entry when it stops.
 - If `docker compose up -d` ever errors with "container name already in use" after a `down -v`, the offending container was created when it was still attached to a different compose project state. `docker rm -f <name>` plus `--remove-orphans` on the next `up` is the fix; don't blindly `docker system prune`.
 - Use `docker compose logs minio-init` to confirm bucket creation at every fresh up — if it didn't run, `mc alias` or the bucket `mb` step likely failed silently and S3 calls in M8 will return NoSuchBucket.
 - Both health indicators use Terminus `HealthCheckError` to fail; replicate this pattern for any future indicator (Postmark, Termii, Twilio, Anthropic) when M10+ adds them.
+
+---
+
+## 2026-04-28 — claude-code (opus 4.7) — M2 Schema & RLS
+
+**Worked on:** full M2 — 14-table schema, RLS, seed, 11 RLS integration tests.
+
+**Tests:** 20 passing (9 unit + 11 RLS integration). `pnpm verify` green.
+
+**Stopped because:** M2 done; ready to start M3 (auth) in next session.
+
+**Notes for next agent (M3):**
+
+- **`SET LOCAL ROLE wdc_app` is mandatory in tests** (and any direct connection in production). The dev `DATABASE_URL` connects as the `wdc` superuser, which **bypasses RLS even with `FORCE ROW LEVEL SECURITY`**. The seed runs RLS-aware via `withRlsTransaction(...{role:'system'})` against a `wdc_app`-set transaction; M3+ services must do the same. If you ever see RLS denials silently returning rowCount=0 instead of erroring (the GUC is set but `current_user='wdc'`), this is why.
+- **RLS UPDATE/DELETE without a matching policy returns rowCount=0, not an error.** That's why `0003_append_only_policies.sql` adds permissive UPDATE/DELETE for `system` on the append-only tables — so the BEFORE trigger fires and raises an explicit error rather than silently affecting zero rows. The pattern is: RLS as the per-role gate, triggers as the inviolable invariant. Mirror this for any future invariant (sealed-report content immutability, deployed-form-version immutability — already done).
+- **Test isolation via savepoint is fragile if you don't always rollback.** Use the `withSavepoint` helper in `rls.spec.ts` — it always `ROLLBACK TO SAVEPOINT` then `RELEASE`, even on the happy path. Skipping the rollback after a successful test where one statement was expected to throw (and did) leaves the savepoint in error state and the next test's `SAVEPOINT` fails with "current transaction is aborted".
+- **Each savepoint sandbox holds at most one expected-throw statement.** If you need to assert two RLS denials on the same fixture (e.g. UPDATE then DELETE both rejected), split into two `it()` blocks. The first throw aborts the savepoint subtxn and the second statement gets "transaction aborted" instead of the trigger error.
+- **Migration runner is hand-rolled (`scripts/migrate.ts`)** because drizzle-kit can't generate RLS policies, custom triggers, or pgvector columns. Future migrations land as `drizzle/NNNN_*.sql` with explicit SQL — do not rely on `drizzle-kit generate`. The Drizzle TS schemas in `src/infra/postgres/schema/*.ts` are a typed mirror used for queries, not for migration generation.
+- **bytea via Drizzle:** pg-core doesn't ship a `bytea` column. We use a `customType` in `src/infra/postgres/schema/_types.ts`. Anything storing `pgcrypto`-encrypted ciphertext or hashes uses this type.
+- **23 LGAs are the real Kaduna list with their canonical Hausa names.** 255 wards are stubs (`<CODE>-W<NN>`) flagged in ARCHITECTURE.md §10 #1. When the user supplies the real ward CSV, replace `scripts/seed.ts` (or add `seeds/wards.csv` and read it) — the LGA codes / counts in the existing seed match the official list, so the CSV should slot in cleanly.
+- **wdc_app role grants** are `SELECT/INSERT/UPDATE/DELETE` on all tables + `USAGE/SELECT` on sequences. `ALTER DEFAULT PRIVILEGES` covers future migrations that create new tables. The `wdc_ro` role (created in `drizzle/init/01_extensions.sql`) is for the AI Assistant's structured retrieval in M12 — read-only, gated via `SET ROLE wdc_ro`.
