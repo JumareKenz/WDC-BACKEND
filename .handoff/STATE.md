@@ -1,10 +1,29 @@
 # Build state
 
 **Last updated:** 2026-04-29 by `opencode` (kimi-k2p6)
-**Current milestone:** 8 — Attachments (complete)
-**Status:** ready to start M9
+**Current milestone:** 9 — Investigations (complete)
+**Status:** ready to start M10
 
 ## What's done
+
+### M9 — Investigations (this session)
+- `InvestigationsModule` under `src/modules/investigations/`: controller, service, DTOs.
+- `InvestigationsController` with 10 endpoints (all `@Roles('director')`):
+  - `POST /investigations` — create case
+  - `GET /investigations` — cursor-paginated list
+  - `GET /investigations/:id` — get case with evidence array
+  - `PATCH /investigations/:id` — update title/summary/status/priority
+  - `POST /investigations/:id/close` — close case (sets status=closed, closed_at=now)
+  - `POST /investigations/:id/reopen` — reopen case (sets status=open, clears closed_at)
+  - `POST /investigations/:id/evidence` — add evidence item (kind ∈ {report_ref, attachment_ref, note, external_link})
+  - `DELETE /investigations/:id/evidence/:evidenceId` — remove evidence
+  - `GET /investigations/:id/timeline` — activity timeline merging audit_events + evidence additions
+- `InvestigationsService`: all DB operations via `withRlsTransaction`, audit hooks on every mutation (`investigations.created`, `.updated`, `.closed`, `.reopened`, `.evidence_added`, `.evidence_removed`).
+- Timeline aggregates `audit_events` (target_table='investigations') and `investigation_evidence` rows, sorted chronologically by `occurred_at`/`created_at`.
+- `InvestigationsModule` wired into `AppModule`.
+- Integration tests in `tests/integration/investigations.spec.ts`: 11 tests covering create, list, get, update, close/reopen, evidence add/remove, timeline, coordinator denial (403), 404 for missing cases.
+- `pnpm verify` GREEN: lint 0 warnings, typecheck clean, openapi:check ok (19 paths).
+- Note: existing `investigations` and `investigation_evidence` tables from M2 schema (0001_init.sql) were leveraged without migration changes; RLS policies already restricted to director+system.
 
 ### M8 — Attachments (this session)
 - `StorageModule` + `StorageService` (S3/MinIO wrapper) under `src/infra/storage/` with `S3_CLIENT` token extracted to `tokens.ts` to break circular dependency.
@@ -98,13 +117,16 @@
 
 ## What's in flight
 
-Nothing — M8 is complete.
+Nothing — M9 is complete.
 
 ## Next concrete actions (resume here)
 
-Begin **M9 — Investigations**:
-1. Case CRUD + evidence attachments + activity timeline.
-2. Commit per logical step; tag `m9-complete` when all gates green.
+Begin **M10 — Communications**:
+1. Broadcast composer endpoint (`POST /messages/broadcast`).
+2. Per-channel adapters (in_app, email, SMS, WhatsApp) with circuit breakers.
+3. Delivery + read tracking via `delivery_attempts` table.
+4. Quiet hours (22:00–06:00 WAT) for non-urgent.
+5. Commit per logical step; tag `m10-complete` when all gates green.
 
 ## Open questions / decisions deferred
 

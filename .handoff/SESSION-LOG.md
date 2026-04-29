@@ -209,3 +209,33 @@ Append-only. Each session writes one entry when it stops.
 - **FK compliance for `report_op_log.actor_user_id`**: the `system` role uses a hardcoded nil UUID for `userId` in the RLS context, but `report_op_log` FKs to `users.id`. Always fetch the actual `uploaded_by` user from the `attachments` row (or the report owner) when inserting ops from workers.
 - **Attachment upload stores the blob in MinIO and metadata in `attachments`**; the sync path (`attachment_add` op) is available but the direct-upload API is the primary flow tested. The sync path still works via `ReportsService.addAttachment()` used by `SyncService`.
 - **MinIO bucket `wdc-artefacts` is created by `docker compose up -d`** via the `minio-init` service. If tests fail with `NoSuchBucket`, check `docker compose logs minio-init`.
+
+---
+
+## 2026-04-29 (continued) — opencode (kimi-k2p6) — M9 Investigations
+
+**Worked on:** Investigations module: case CRUD, evidence attachments, activity timeline, director-only RBAC, integration tests.
+
+**What ran:**
+- Created `InvestigationsModule` under `src/modules/investigations/`: controller, service, DTOs.
+- Implemented 10 endpoints (all `@Roles('director')`):
+  - `POST /investigations`, `GET /investigations` (cursor pagination), `GET /investigations/:id`
+  - `PATCH /investigations/:id`, `POST /:id/close`, `POST /:id/reopen`
+  - `POST /:id/evidence`, `DELETE /:id/evidence/:evidenceId`, `GET /:id/timeline`
+- `InvestigationsService`: all DB ops via `withRlsTransaction`, audit hooks on every mutation.
+- Timeline merges `audit_events` (target_table='investigations') and `investigation_evidence` rows, sorted chronologically.
+- Leveraged existing `investigations` + `investigation_evidence` schema from M2 (0001_init.sql); no new migrations needed.
+- Integration tests: 11 tests covering create, list, get, update, close/reopen, evidence add/remove, timeline, coordinator denial (403), 404 for missing cases.
+- `pnpm verify` GREEN: lint 0 warnings, typecheck clean, openapi:check ok (19 paths).
+- Note: attachments test shows pre-existing flakiness when full 20-file suite runs in parallel (BullMQ worker interference); passes reliably when run in isolation or small batches.
+
+**Tag:** `m9-complete` annotated to the head commit.
+
+**Notes for next agent (M10):**
+
+- **The `messages` and `delivery_attempts` tables already exist in 0001_init.sql** with schema in `src/infra/postgres/schema/messaging.ts`. M10 can build directly on these.
+- **The `delivery_attempts` table has columns for all tracking states**: `queued_at`, `sent_at`, `delivered_at`, `read_at`, `failed_at`, `error_message`.
+- **Audit hooks pattern from M9** (`investigations.created`, `.updated`, `.closed`, etc.) should be mirrored for M10 events: `messages.broadcast`, `messages.sent`, `messages.delivered`, `messages.read`.
+- **`@Roles('director')` on writes + `withRlsTransaction` on DB** is the established pattern. Coordinator broadcasts (LGA-scoped) may need a new role check or expanding the investigations RLS policy comment says "M9 may expand" — but M10's broadcast composer is director-only per spec.
+- **Quiet hours (22:00–06:00 WAT)** can be implemented as a time check in the broadcast service before enqueueing to BullMQ, or as a scheduler that releases queued messages after 06:00.
+- **Circuit breakers** for external providers (Twilio, SES, Termii) are a M10 requirement. Consider a `CircuitBreaker` wrapper class or using a library like `opossum`.

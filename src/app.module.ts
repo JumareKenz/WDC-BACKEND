@@ -15,6 +15,7 @@ import { RedisModule } from './infra/redis/redis.module';
 import { StorageModule } from './infra/storage/storage.module';
 import { QueueModule } from './infra/queue/queue.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
+import { InvestigationsModule } from './modules/investigations/investigations.module';
 import { RequestIdMiddleware, REQUEST_ID_HEADER } from './common/logger/request-id.middleware';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
@@ -69,6 +70,7 @@ import { loadConfig } from './config/configuration';
     ReportsModule,
     SyncModule,
     AttachmentsModule,
+    InvestigationsModule,
     HealthModule,
   ],
   providers: [

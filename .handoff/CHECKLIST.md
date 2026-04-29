@@ -90,8 +90,9 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
 - [x] Commit tagged `m8-complete`
 
 ## M9 — Investigations
-- [ ] Case CRUD + evidence attachments + activity timeline
-- [ ] Commit tagged `m9-complete`
+- [x] Case CRUD + evidence attachments + activity timeline
+- [x] `pnpm verify` exits 0 — 110 tests pass (99 prior + 11 investigations integration)
+- [x] Commit tagged `m9-complete`
 
 ## M10 — Communications
 - [ ] Broadcast composer endpoint
