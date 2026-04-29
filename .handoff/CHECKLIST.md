@@ -82,11 +82,12 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
  - [ ] Commit tagged `m7-complete`
 
 ## M8 — Voice & OCR pipelines
-- [ ] Async ASR (Whisper) job in BullMQ queue `asr.transcribe`
-- [ ] Async OCR job in BullMQ queue `ocr.process`
-- [ ] Artefacts stored in S3-compatible (MinIO dev) with signed URLs
-- [ ] Confidence scores stored per field
-- [ ] Commit tagged `m8-complete`
+- [x] Async ASR (Whisper) job in BullMQ queue `asr.transcribe`
+- [x] Async OCR job in BullMQ queue `ocr.process`
+- [x] Artefacts stored in S3-compatible (MinIO dev) with signed URLs
+- [x] Confidence scores stored per field
+- [x] `pnpm verify` exits 0 — 99 tests pass (94 prior + 5 attachments integration)
+- [x] Commit tagged `m8-complete`
 
 ## M9 — Investigations
 - [ ] Case CRUD + evidence attachments + activity timeline

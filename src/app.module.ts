@@ -12,6 +12,9 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { SyncModule } from './modules/sync/sync.module';
 import { PostgresModule } from './infra/postgres/postgres.module';
 import { RedisModule } from './infra/redis/redis.module';
+import { StorageModule } from './infra/storage/storage.module';
+import { QueueModule } from './infra/queue/queue.module';
+import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { RequestIdMiddleware, REQUEST_ID_HEADER } from './common/logger/request-id.middleware';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
@@ -57,12 +60,15 @@ import { loadConfig } from './config/configuration';
     }),
     PostgresModule,
     RedisModule,
+    StorageModule,
+    QueueModule,
     AuditModule,
     AuthModule,
     UsersModule,
     FormsModule,
     ReportsModule,
     SyncModule,
+    AttachmentsModule,
     HealthModule,
   ],
   providers: [

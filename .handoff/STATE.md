@@ -1,10 +1,22 @@
 # Build state
 
 **Last updated:** 2026-04-29 by `opencode` (kimi-k2p6)
-**Current milestone:** 7 — Sync (complete)
-**Status:** ready to start M8
+**Current milestone:** 8 — Attachments (complete)
+**Status:** ready to start M9
 
 ## What's done
+
+### M8 — Attachments (this session)
+- `StorageModule` + `StorageService` (S3/MinIO wrapper) under `src/infra/storage/` with `S3_CLIENT` token extracted to `tokens.ts` to break circular dependency.
+- `QueueModule` with `OCR_QUEUE` and `ASR_QUEUE` providers under `src/infra/queue/`; both `@Global()`.
+- `AttachmentsModule`: controller (`POST /attachments/upload` multipart, `GET /attachments/report/:reportId`), service, DTOs (`UploadAttachmentDto`, `AttachmentResponseDto`).
+- `OcrProcessor` and `AsrProcessor` BullMQ workers (`OnModuleInit`/`OnModuleDestroy` lifecycle) injected into `AttachmentsService` for instantiation.
+- Workers use `withRlsTransaction` with `role='system'`; fetch `uploaded_by` from `attachments` to satisfy `report_op_log.actor_user_id` FK constraint.
+- SQL uses JS-built JSON payload (`JSON.stringify`) passed as `$3::jsonb` to avoid `jsonb_build_object` polymorphic-type errors.
+- Attachment upload stores blob in MinIO (`wdc-artefacts` bucket), metadata in `attachments` table, then queues async job. Worker updates `processing_state` to `done`, sets `transcript`/`confidence`/`processing_meta`, and inserts `field_set` op so extracted text joins the report canonical.
+- Integration tests in `tests/integration/attachments.spec.ts`: upload image → OCR job processed, upload audio → ASR job processed, list with signed URLs, sealed report rejection (400), mismatched MIME kind rejection (400).
+- `tsconfig.json` `types` array extended with `"multer"` for `Express.Multer.File`.
+- `pnpm verify` GREEN: 99 tests passing, lint 0 warnings, typecheck clean, openapi:check ok (19 paths).
 
 ### M7 — Sync (this session)
 - `SyncModule` + `SyncController` + `SyncService` + `SyncDto` under `src/modules/sync/`.
@@ -86,24 +98,13 @@
 
 ## What's in flight
 
-Nothing — M7 is complete.
+Nothing — M8 is complete.
 
 ## Next concrete actions (resume here)
 
-Begin **M8 — Attachments (media pipeline + OCR + ASR)**:
-1. `POST /attachments/upload` (or multipart via sync batch) accepting photo/audio with client-side `attachment_id`.
-2. Store blobs in MinIO (S3-compatible) via `@aws-sdk/client-s3`; metadata in `attachments` table.
-3. Async OCR for photos (Tesseract or cloud Vision) → extract text → sync as `field_set` op.
-4. Async ASR for audio (Whisper-large-v3 for Hausa) → transcribe → sync as `field_set` op.
-5. Queue infrastructure: BullMQ + Redis (already in docker-compose). Producer in sync/attachment service, consumer workers for OCR/ASR.
-6. Tests: integration (upload round-trip, OCR/ASR mocks, queue job lifecycle).
-7. Commit per logical step; tag `m8-complete` when all gates green.
-
-**Notes for M8 author:**
-- MinIO is already running in docker-compose on port 9100/9101 (console). Use `S3_ENDPOINT` env var.
-- Redis is already running on 6380 for BullMQ.
-- Consider whether to store attachment metadata in `report_op_log` as `attachment_add` ops (already defined in schema) or as standalone `attachments` rows linked by `report_id` + `op_id`.
-- The `embeddings` table with `vector(1536)` is ready for M8.5 (RAG indexing of OCR/ASR outputs).
+Begin **M9 — Investigations**:
+1. Case CRUD + evidence attachments + activity timeline.
+2. Commit per logical step; tag `m9-complete` when all gates green.
 
 ## Open questions / decisions deferred
 

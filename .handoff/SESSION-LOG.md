@@ -181,3 +181,31 @@ Append-only. Each session writes one entry when it stops.
 - **Secretary ward-scope check** for content ops is enforced inside `applyContentOpsBatch` (same txn) by comparing `reports.ward_id` against `actor.wardId`. This is redundant with RLS but explicit and faster than relying on RLS for batch validation.
 - **The `idempotency_keys` table is RLS-locked to `system` role only**; all idempotency queries use `withRlsTransaction(..., {role:'system'})`.
 - **OpenAPI still at 19 paths** (M5 snapshot). The sync endpoint exists and works but isn't reflected in the committed spec. Regenerate when convenient: `pnpm openapi:generate` then copy `openapi.generated.yaml` → `openapi.yaml`.
+
+---
+
+## 2026-04-29 (continued) — opencode (kimi-k2p6) — M8 Attachments closeout
+
+**Worked on:** `POST /attachments/upload` multipart, MinIO/S3 storage, BullMQ OCR/ASR workers, integration tests.
+
+**What ran:**
+- Created `StorageModule` + `StorageService` (S3/MinIO wrapper) with `S3_CLIENT` token in `src/infra/storage/tokens.ts` to break circular dependency.
+- Created `QueueModule` with `OCR_QUEUE` and `ASR_QUEUE` global providers.
+- Created `AttachmentsModule`: controller (`POST /attachments/upload`, `GET /attachments/report/:reportId`), service, DTOs.
+- Created `OcrProcessor` and `AsrProcessor` BullMQ workers with `OnModuleInit`/`OnModuleDestroy` lifecycle, injected into `AttachmentsService` to force NestJS instantiation.
+- Workers use `withRlsTransaction` with `role='system'`; fetch `uploaded_by` from `attachments` to satisfy `report_op_log.actor_user_id` FK constraint.
+- Fixed `jsonb_build_object` polymorphic-type error by building payload in JS (`JSON.stringify`) and passing as single `::jsonb` parameter.
+- Fixed `kind is not defined` worker scope error by destructuring `kind` from `job.data` at processor top.
+- `tsconfig.json` `types` extended with `"multer"` for `Express.Multer.File`.
+- Integration tests in `tests/integration/attachments.spec.ts`: upload image/audio, list with signed URLs, sealed report rejection (400), mismatched MIME kind rejection (400).
+- `pnpm verify` GREEN: 99 tests passing (19 files), lint 0 warnings, typecheck clean, openapi:check ok (19 paths).
+
+**Tag:** `m8-complete` annotated to the head commit.
+
+**Notes for next agent (M9):**
+
+- **BullMQ workers must be injected somewhere in the NestJS module graph** or they won't instantiate. `AttachmentsService` constructor takes `private readonly ocr: OcrProcessor, private readonly asr: AsrProcessor` — this is the current pattern. If you add more workers (e.g., for M10 delivery adapters), inject them similarly.
+- **Worker SQL should avoid `jsonb_build_object` with inline casts** when using `pg` raw queries. Postgres can't resolve polymorphic `to_jsonb` types when all args are text parameters. Build the JSON object in JS and pass it as a single `::jsonb` parameter instead.
+- **FK compliance for `report_op_log.actor_user_id`**: the `system` role uses a hardcoded nil UUID for `userId` in the RLS context, but `report_op_log` FKs to `users.id`. Always fetch the actual `uploaded_by` user from the `attachments` row (or the report owner) when inserting ops from workers.
+- **Attachment upload stores the blob in MinIO and metadata in `attachments`**; the sync path (`attachment_add` op) is available but the direct-upload API is the primary flow tested. The sync path still works via `ReportsService.addAttachment()` used by `SyncService`.
+- **MinIO bucket `wdc-artefacts` is created by `docker compose up -d`** via the `minio-init` service. If tests fail with `NoSuchBucket`, check `docker compose logs minio-init`.
