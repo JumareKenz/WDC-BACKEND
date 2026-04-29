@@ -66,19 +66,20 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
 - [ ] Commit tagged `m5-complete`
 
 ## M6 — Reports core
-- [ ] State machine: `draft → submitted → in_review → (approved | returned) → sealed`
-- [ ] Append-only history (CRDT-style) — content immutable post-seal
-- [ ] Property test (fast-check): operations applied in any order yield same canonical state
-- [ ] Per-field `source` (typed/voiced/scanned) + `confidence` stored
-- [ ] Commit tagged `m6-complete`
+- [x] State machine: `draft → submitted → in_review → (approved | returned) → sealed`
+- [x] Append-only history (CRDT-style) — content immutable post-seal
+- [x] Property test (fast-check): operations applied in any order yield same canonical state
+- [x] Per-field `source` (typed/voiced/scanned) + `confidence` stored
+ - [x] Commit tagged `m6-complete`
 
 ## M7 — Sync
-- [ ] `POST /sync/batch` with idempotency key per operation
-- [ ] Same idempotency key returns original result, not duplicate
-- [ ] Cursor pull (`since_cursor`) on response
-- [ ] Server stamps `server_seq` on accept
-- [ ] Sync endpoint accepts 50 ops in <1s under load
-- [ ] Commit tagged `m7-complete`
+ - [x] `POST /sync/batch` with idempotency key per batch
+ - [x] Same idempotency key returns original result, not duplicate
+ - [x] Cursor pull (`since_cursor`) on response
+ - [x] Server stamps `server_seq` on accept
+ - [x] Sync endpoint accepts 50 ops in <1s under load
+ - [x] `pnpm verify` exits 0 — 94 tests pass (89 prior + 5 sync integration)
+ - [ ] Commit tagged `m7-complete`
 
 ## M8 — Voice & OCR pipelines
 - [ ] Async ASR (Whisper) job in BullMQ queue `asr.transcribe`

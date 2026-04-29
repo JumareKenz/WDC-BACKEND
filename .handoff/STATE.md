@@ -1,12 +1,34 @@
 # Build state
 
-**Last updated:** 2026-04-27 by `claude-code` (opus 4.7)
-**Current milestone:** 6 — Reports core (M5 complete, tagged `m5-complete`)
-**Status:** ready to start M6
+**Last updated:** 2026-04-29 by `opencode` (kimi-k2p6)
+**Current milestone:** 7 — Sync (complete)
+**Status:** ready to start M8
 
 ## What's done
 
-### M5 — Forms & versioning (this session)
+### M7 — Sync (this session)
+- `SyncModule` + `SyncController` + `SyncService` + `SyncDto` under `src/modules/sync/`.
+- `POST /api/v1/sync/batch`: accepts a batch of ops (`field_set`, `attachment_add`, state transitions) with an idempotency key per batch.
+- **Idempotency**: same `idempotencyKey` returns the original stored `SyncBatchResponseDto` without duplicate writes. Keyed responses stored in `idempotency_keys` (system role).
+- **Cursor pull**: `sinceCursor` on request; response includes `pulledOps` (ops from `report_op_log` with `server_seq > sinceCursor`) and `nextCursor` (max `server_seq` of applied + pulled ops).
+- **Batched content ops**: `field_set` + `attachment_add` ops on the same report are inserted in a single transaction with one `reprojectCanonical` call. Per-report state guard (`draft`/`returned` only) and secretary ward-scope check happen inside the same txn.
+- **Transitions**: individual `applyTransitionOp()` delegates to `ReportsService.transition()` per op to preserve state-machine guards (sequential by design).
+- `addAttachment()` added to `ReportsService` for sync-side use.
+- `SyncModule` wired into `AppModule`.
+- Tests +5 integration in `tests/integration/sync.spec.ts`: batch apply (`field_set` + `submit`), idempotency replay, idempotency key collision (different ops → same stored response), cursor pull, 50-op load test (<1s).
+- `pnpm verify` GREEN: 94 tests passing, lint 0 warnings, typecheck clean, openapi:check ok (19 paths).
+
+### M6 — Reports core
+- `ReportsService` + `ReportsController` under `src/modules/reports/`: create draft against deployed `form_version_id` (secretary, own ward), submit, open-review (coordinator), approve, return (with notes), edit-returned (secretary), seal-due (director/system).
+- State machine `draft → submitted → in_review → (approved | returned) → sealed`. Returned reports transition back to `draft` via `edit_returned`. Sealed reports reject all content ops via `isEditable()` guard.
+- `report_op_log` append-only ops: `field_set`, `attachment_add`, `submit`, `open_review`, `approve`, `return`, `seal`. The `reports.canonical` JSONB is recomputed from the op log on every accept.
+- Per-field `source` (`typed`/`voiced`/`scanned`) + `confidence` (`0..1` or `null`) stored on every `field_set` op.
+- `approved_at` column (migration `0005_reports_approved_at.sql`) tracks when a report entered `approved`; cleared on `return` so re-approval gets a fresh grace window. Sealing pass uses `approved_at` (not `updated_at`, which the trigger overwrites) to compute grace.
+- Property test (`tests/property/report-history.spec.ts`): `fast-check` with 1000 cases confirms `projectCanonical` is shuffle-invariant.
+- Tests +16: 10 unit/property (projection determinism, state machine helpers, shuffle-invariance); 6 integration (full lifecycle, return loop with notes, state guards, role guards, sealing pass, scope isolation).
+- `pnpm verify` GREEN: 89 tests passing, lint 0 warnings, typecheck clean, openapi:check ok.
+
+### M5 — Forms & versioning
 - `src/modules/forms/form-schema.ts`: Zod discriminated union over 7 field types (text, number, date, select, checkbox, photo, audio). Hausa label (`label_ha`) is mandatory on every field and every option. `superRefine` enforces section-key + field-key uniqueness.
 - `FormsService`: create / list / getById / update / createVersion / listVersions / getVersion / deploy / archive / listVisible. All director-write, RLS-read. `validateScope()` rejects mismatched `scope_kind` + `scope_ids` pairs.
 - Deploy flow: marks the *latest* version `deployed_at` + `deployed_by`, sets `forms.current_version_id` and `forms.status='deployed'`. The 0001 trigger `wdc_form_versions_immutable` then blocks any UPDATE/DELETE on that version row.
@@ -64,25 +86,24 @@
 
 ## What's in flight
 
-Nothing — M5 is complete. M6 has not started.
+Nothing — M7 is complete.
 
 ## Next concrete actions (resume here)
 
-Begin **M6 — Reports core**:
-1. `ReportsService` + `ReportsController` under `src/modules/reports/`: create draft against a deployed `form_version_id` (secretary, own ward), submit (`POST /:id/submit`), open review (`POST /:id/open-review` — coordinator), approve (`POST /:id/approve`), return (`POST /:id/return` with notes), seal (background job after `REPORT_SEAL_GRACE_DAYS`, default 7).
-2. **State machine** `draft → submitted → in_review → (approved | returned) → sealed`. Returned reports go back to draft when secretary edits. Once sealed, content is immutable (the trigger on `report_op_log` already blocks tampering; a similar `reports.canonical` immutability check goes in M6).
-3. **Append-only history**: every state change and field edit is an op in `report_op_log` with `op_kind` ∈ `{field_set, attachment_add, submit, open_review, approve, return, seal}`. The `reports.canonical` JSONB is a derived projection over the op log, recomputed on every accept.
-4. **Per-field `source` + `confidence`**: each `field_set` op carries `{ source: 'typed' | 'voiced' | 'scanned', confidence: number | null }`. The canonical projection retains the most recent value per field key.
-5. Property test (`tests/property/report-history.spec.ts`): same operations applied in any order yield the same canonical state. Use `fast-check` with shrinking, ≥1000 cases.
-6. Sealing job: BullMQ-scheduled (or polling, M6 can stub the schedule). Loops over reports where `state='approved'` and `now() - approved_at > REPORT_SEAL_GRACE_DAYS`, transitions them to `sealed`, sets `sealed_at`. Idempotent.
-7. Audit events on every state transition: `reports.submitted`, `reports.opened_review`, `reports.approved`, `reports.returned`, `reports.sealed`.
-8. Tests: unit (canonical projection determinism), integration (full lifecycle, secretary cannot read other ward, coordinator cannot edit content, sealed report rejects further field_set ops).
-9. Commit per logical step; tag `m6-complete` when all gates green.
+Begin **M8 — Attachments (media pipeline + OCR + ASR)**:
+1. `POST /attachments/upload` (or multipart via sync batch) accepting photo/audio with client-side `attachment_id`.
+2. Store blobs in MinIO (S3-compatible) via `@aws-sdk/client-s3`; metadata in `attachments` table.
+3. Async OCR for photos (Tesseract or cloud Vision) → extract text → sync as `field_set` op.
+4. Async ASR for audio (Whisper-large-v3 for Hausa) → transcribe → sync as `field_set` op.
+5. Queue infrastructure: BullMQ + Redis (already in docker-compose). Producer in sync/attachment service, consumer workers for OCR/ASR.
+6. Tests: integration (upload round-trip, OCR/ASR mocks, queue job lifecycle).
+7. Commit per logical step; tag `m8-complete` when all gates green.
 
-**Notes for M6 author:**
-- Add `fast-check` to `devDependencies` for property tests.
-- The sealing job needs a BullMQ queue. For M6 you can stub the schedule (just expose a service method that runs the seal pass) and wire the queue in M7 alongside the rest of the BullMQ work.
-- The `report_op_log` table already has the append-only trigger from M2 — content can't be backdated.
+**Notes for M8 author:**
+- MinIO is already running in docker-compose on port 9100/9101 (console). Use `S3_ENDPOINT` env var.
+- Redis is already running on 6380 for BullMQ.
+- Consider whether to store attachment metadata in `report_op_log` as `attachment_add` ops (already defined in schema) or as standalone `attachments` rows linked by `report_id` + `op_id`.
+- The `embeddings` table with `vector(1536)` is ready for M8.5 (RAG indexing of OCR/ASR outputs).
 
 ## Open questions / decisions deferred
 

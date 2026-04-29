@@ -8,6 +8,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { UsersModule } from './modules/users/users.module';
 import { FormsModule } from './modules/forms/forms.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { SyncModule } from './modules/sync/sync.module';
 import { PostgresModule } from './infra/postgres/postgres.module';
 import { RedisModule } from './infra/redis/redis.module';
 import { RequestIdMiddleware, REQUEST_ID_HEADER } from './common/logger/request-id.middleware';
@@ -59,6 +61,8 @@ import { loadConfig } from './config/configuration';
     AuthModule,
     UsersModule,
     FormsModule,
+    ReportsModule,
+    SyncModule,
     HealthModule,
   ],
   providers: [

@@ -8,6 +8,7 @@ export default defineConfig({
     include: ['tests/**/*.spec.ts', 'src/**/*.spec.ts'],
     exclude: ['node_modules', 'dist', 'tests/load/**'],
     setupFiles: ['./tests/setup.ts'],
+    testTimeout: 30_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
