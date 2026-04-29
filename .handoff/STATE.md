@@ -1,12 +1,20 @@
 # Build state
 
 **Last updated:** 2026-04-27 by `claude-code` (opus 4.7)
-**Current milestone:** 5 — Forms & versioning (M4 complete, tagged `m4-complete`)
-**Status:** ready to start M5
+**Current milestone:** 6 — Reports core (M5 complete, tagged `m5-complete`)
+**Status:** ready to start M6
 
 ## What's done
 
-### M4 — Users & onboarding (this session)
+### M5 — Forms & versioning (this session)
+- `src/modules/forms/form-schema.ts`: Zod discriminated union over 7 field types (text, number, date, select, checkbox, photo, audio). Hausa label (`label_ha`) is mandatory on every field and every option. `superRefine` enforces section-key + field-key uniqueness.
+- `FormsService`: create / list / getById / update / createVersion / listVersions / getVersion / deploy / archive / listVisible. All director-write, RLS-read. `validateScope()` rejects mismatched `scope_kind` + `scope_ids` pairs.
+- Deploy flow: marks the *latest* version `deployed_at` + `deployed_by`, sets `forms.current_version_id` and `forms.status='deployed'`. The 0001 trigger `wdc_form_versions_immutable` then blocks any UPDATE/DELETE on that version row.
+- `GET /forms/visible`: SQL filter `scope_kind='state' OR (scope_kind='lga' AND scope_ids ? $lga::text) OR (scope_kind='ward' AND scope_ids ? $ward::text)`. Only `deployed` forms appear.
+- 9 endpoints under `/api/v1/forms`. OpenAPI: 19 paths total.
+- Tests +13: 7 form-schema unit (valid minimal, unknown type, missing label_ha, dup field/section keys, select with options, snake_case field key); 6 forms integration (director CRUD + coordinator-403, invalid schema 400, deploy freezes + DB UPDATE rejected by trigger, no-version 400 + double-deploy 409, visible scope filter, archive lifecycle).
+
+### M4 — Users & onboarding
 - Migration `0004_enrolment_tokens.sql`: `users.enrolment_token_hash` (bytea, sha256) + `users.enrolment_expires_at` (24h TTL). Partial unique index (where not null).
 - `withRlsTransaction` extended to set `LOCAL ROLE wdc_app` and `LOCAL app.dek` at the start of every wrapped txn — production code now engages RLS automatically and pgcrypto column functions can decrypt.
 - `src/common/crypto/phone.ts`: E.164 normalisation (also upgrades Nigerian `0…` → `+234…`), deterministic phone/email hashes for index lookups.
@@ -56,20 +64,25 @@
 
 ## What's in flight
 
-Nothing — M4 is complete. M5 has not started.
+Nothing — M5 is complete. M6 has not started.
 
 ## Next concrete actions (resume here)
 
-Begin **M5 — Forms & versioning**:
-1. `FormsService` + `FormsController` under `src/modules/forms/`: form CRUD (`POST /api/v1/forms`, `GET /api/v1/forms`, `GET /forms/:id`, `PATCH /forms/:id`); version CRUD (`POST /forms/:id/versions`, `GET /forms/:id/versions`, `GET /forms/:id/versions/:n`).
-2. State transitions: `forms.status` from `draft` → `deployed` (`POST /forms/:id/deploy`) → `archived` (`POST /forms/:id/archive`). On deploy, the latest version's `deployed_at` + `deployed_by` are set and `forms.current_version_id` updated; the trigger `wdc_form_versions_immutable` then prevents UPDATE/DELETE on that version.
-3. Form scope (`scope_kind` ∈ `state` | `lga` | `ward` + `scope_ids` array). New endpoint `GET /api/v1/forms/visible` returns the forms a caller can fill, computed from the caller's RLS context.
-4. Hausa label is first-class — every field in `form_versions.schema` carries `{ key, type, label_en, label_ha, required, ... }`. Add a Zod schema validator for the JSON shape.
-5. Tests: unit (Zod schema validator), integration (deploy lifecycle, immutable trigger fires on deployed-version edit attempt, scope filtering for secretary vs coordinator).
-6. Audit events: `forms.created`, `forms.versioned`, `forms.deployed`, `forms.archived`.
-7. Commit per logical step; tag `m5-complete` when all gates green.
+Begin **M6 — Reports core**:
+1. `ReportsService` + `ReportsController` under `src/modules/reports/`: create draft against a deployed `form_version_id` (secretary, own ward), submit (`POST /:id/submit`), open review (`POST /:id/open-review` — coordinator), approve (`POST /:id/approve`), return (`POST /:id/return` with notes), seal (background job after `REPORT_SEAL_GRACE_DAYS`, default 7).
+2. **State machine** `draft → submitted → in_review → (approved | returned) → sealed`. Returned reports go back to draft when secretary edits. Once sealed, content is immutable (the trigger on `report_op_log` already blocks tampering; a similar `reports.canonical` immutability check goes in M6).
+3. **Append-only history**: every state change and field edit is an op in `report_op_log` with `op_kind` ∈ `{field_set, attachment_add, submit, open_review, approve, return, seal}`. The `reports.canonical` JSONB is a derived projection over the op log, recomputed on every accept.
+4. **Per-field `source` + `confidence`**: each `field_set` op carries `{ source: 'typed' | 'voiced' | 'scanned', confidence: number | null }`. The canonical projection retains the most recent value per field key.
+5. Property test (`tests/property/report-history.spec.ts`): same operations applied in any order yield the same canonical state. Use `fast-check` with shrinking, ≥1000 cases.
+6. Sealing job: BullMQ-scheduled (or polling, M6 can stub the schedule). Loops over reports where `state='approved'` and `now() - approved_at > REPORT_SEAL_GRACE_DAYS`, transitions them to `sealed`, sets `sealed_at`. Idempotent.
+7. Audit events on every state transition: `reports.submitted`, `reports.opened_review`, `reports.approved`, `reports.returned`, `reports.sealed`.
+8. Tests: unit (canonical projection determinism), integration (full lifecycle, secretary cannot read other ward, coordinator cannot edit content, sealed report rejects further field_set ops).
+9. Commit per logical step; tag `m6-complete` when all gates green.
 
-**Note for M5 author:** the explicit-`@Inject` pattern is the project convention; mirror it in `FormsService` and `FormsController`. The `wdc_app` role-switch + DEK injection live in `withRlsTransaction` now — services don't need to do anything manual for either; just wrap DB work in `withRlsTransaction(actor, ...)`.
+**Notes for M6 author:**
+- Add `fast-check` to `devDependencies` for property tests.
+- The sealing job needs a BullMQ queue. For M6 you can stub the schedule (just expose a service method that runs the seal pass) and wire the queue in M7 alongside the rest of the BullMQ work.
+- The `report_op_log` table already has the append-only trigger from M2 — content can't be backdated.
 
 ## Open questions / decisions deferred
 

@@ -55,8 +55,14 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
 - [ ] Commit tagged `m4-complete`
 
 ## M5 — Forms & versioning
-- [ ] `Form` + `FormVersion` (immutable post-deploy) + scope (state/LGA/ward)
-- [ ] Hausa label as first-class field property
+- [x] `FormsService` + `FormsController` + `FormsModule`: 9 endpoints under `/api/v1/forms` (CRUD + version CRUD + deploy/archive + visible)
+- [x] Zod-validated form-schema: discriminated union over text/number/date/select/checkbox/photo/audio fields; both `label_en` and `label_ha` are required on every field; section + field key uniqueness enforced
+- [x] State machine `draft → deployed → archived` with `POST /:id/deploy` and `POST /:id/archive`
+- [x] On deploy: `form_versions.deployed_at` + `deployed_by` set; `forms.current_version_id` updated; the immutability trigger then blocks UPDATE/DELETE on that version
+- [x] `GET /forms/visible` returns deployed forms in scope (state-wide, LGA in `scope_ids`, ward in `scope_ids`) — uses Postgres `?` (jsonb has-key) operator against text-keyed arrays
+- [x] Audit events: `forms.created`, `forms.updated`, `forms.versioned`, `forms.deployed`, `forms.archived`
+- [x] `pnpm verify` exits 0 — 73 tests pass (was 60 → +13)
+- [x] OpenAPI: 19 paths total (12 prior + 7 forms)
 - [ ] Commit tagged `m5-complete`
 
 ## M6 — Reports core

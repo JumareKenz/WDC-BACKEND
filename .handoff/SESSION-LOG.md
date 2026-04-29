@@ -109,3 +109,23 @@ Append-only. Each session writes one entry when it stops.
 - **Enrolment tokens are stored hashed (sha256), one-time-use, 24h TTL.** When the user redeems, the `users.enrolment_token_hash` and `users.enrolment_expires_at` columns are NULLed. Re-presenting the same token then returns 401. The TTL is enforced server-side (no DB-level CHECK because we want the token to remain queryable for audit purposes, not silently disappear).
 - **`requireDirector` lives in `users.service.ts` as a small predicate.** If a third module needs the same gate (forms? investigations?), promote it to `src/common/auth/`. Don't keep inline `if (actor.role !== 'director') throw 403` checks across files.
 - **`BadRequestException`, `ForbiddenException`, `ConflictException`, `NotFoundException`, `UnauthorizedException` from `@nestjs/common`** map to 400/403/409/404/401 cleanly with the validation pipe set up in `main.ts`. Don't manually `res.status(...)`.
+
+---
+
+## 2026-04-29 — claude-code (opus 4.7) — M5 Forms & versioning
+
+**Worked on:** form CRUD + immutable versioning + scope-aware visibility + Zod schema validator.
+
+**Tests:** 73 passing across 14 spec files. `pnpm verify` GREEN.
+
+**Stopped because:** M5 done; M6 (Reports core) is next.
+
+**Notes for next agent (M6):**
+
+- **The `forms.scope_ids` jsonb stores UUID strings**, and the visibility query uses Postgres' `?` operator (`jsonb has key`). For arrays this checks element membership when elements are strings. Code: `scope_ids ? $lga::text`. Pass the lga/ward UUIDs as text, not as jsonb. Empty caller scope (e.g. director with `lgaId=null`) just sends `''` which never matches a UUID — filter for state-wide explicitly first.
+- **Zod's `discriminatedUnion` with `superRefine`** is the cleanest way to validate the form-schema shape. Per-section field-key uniqueness is enforced in the refine, not the type system. If you extend the field-type list (M8 will probably add a new `geo` type for GPS coordinates), add it both to the union and to any case in the report-projection logic that switches on `type`.
+- **Don't try to use the Drizzle TS schema for the `schema` JSONB column** — the type there is `Record<string, unknown>`, intentionally loose. The Zod parser is the source of truth for the shape; pass parsed JSON to the INSERT, not raw input.
+- **Structured 400 errors from Zod**: pass `{ message, errors: [{path, message}, ...] }` as the body of a `BadRequestException`. The validation pipe's existing handler will surface that shape to the client. The forms test asserts `body.message === 'invalid form schema'` and `Array.isArray(body.errors)`.
+- **The form_versions immutability trigger fires regardless of role** because BEFORE-row triggers run before RLS policy checks. The forms integration test directly UPDATEs as the dev superuser and the trigger still rejects — proof that the invariant survives even an RLS misconfiguration.
+- **Don't allow editing the slug post-create.** UpdateFormDto deliberately omits `slug` — once a form is referenced (by reports, audit, or external systems), its slug is part of its identity.
+- **Validate scope on every write that touches scope_kind OR scope_ids.** The patch path reads existing values to validate the resulting pair (state forms must have empty scope_ids; lga/ward forms must have non-empty). Doing it client-side only would let a partial PATCH leave the row inconsistent.

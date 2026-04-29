@@ -254,6 +254,159 @@ paths:
       responses:
         '200': { description: reactivated, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
         '403': { description: requires director }
+  /api/v1/forms:
+    get:
+      summary: List forms (RLS-scoped)
+      operationId: formsList
+      tags: [forms]
+      security: [{ bearer: [] }]
+      responses:
+        '200':
+          description: forms array
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Form' } }
+        '401': { description: missing or invalid bearer }
+    post:
+      summary: Create a draft form (director only)
+      operationId: formsCreate
+      tags: [forms]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateForm' } } }
+      responses:
+        '201': { description: form created, content: { application/json: { schema: { $ref: '#/components/schemas/Form' } } } }
+        '403': { description: requires director }
+        '409': { description: slug already in use }
+  /api/v1/forms/visible:
+    get:
+      summary: Forms the caller can fill, computed from RLS context
+      operationId: formsVisible
+      tags: [forms]
+      security: [{ bearer: [] }]
+      responses:
+        '200':
+          description: deployed forms in caller scope
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Form' } }
+  /api/v1/forms/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Get one form
+      operationId: formsGet
+      tags: [forms]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: form, content: { application/json: { schema: { $ref: '#/components/schemas/Form' } } } }
+        '404': { description: not found }
+    patch:
+      summary: Update form metadata or scope (director only)
+      operationId: formsUpdate
+      tags: [forms]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                titleHa: { type: string }
+                scopeKind: { type: string, enum: [state, lga, ward] }
+                scopeIds: { type: array, items: { type: string, format: uuid } }
+      responses:
+        '200': { description: updated, content: { application/json: { schema: { $ref: '#/components/schemas/Form' } } } }
+        '403': { description: requires director }
+  /api/v1/forms/{id}/deploy:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Deploy the latest version; freezes it (director only)
+      operationId: formsDeploy
+      tags: [forms]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: deployed, content: { application/json: { schema: { $ref: '#/components/schemas/Form' } } } }
+        '400': { description: form has no versions to deploy }
+        '403': { description: requires director }
+        '409': { description: latest version already deployed }
+  /api/v1/forms/{id}/archive:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Archive a form (director only)
+      operationId: formsArchive
+      tags: [forms]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: archived, content: { application/json: { schema: { $ref: '#/components/schemas/Form' } } } }
+        '403': { description: requires director }
+  /api/v1/forms/{id}/versions:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: List versions of a form
+      operationId: formsListVersions
+      tags: [forms]
+      security: [{ bearer: [] }]
+      responses:
+        '200':
+          description: versions
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/FormVersion' } }
+    post:
+      summary: Create a new draft version (director only)
+      operationId: formsCreateVersion
+      tags: [forms]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [schema]
+              properties:
+                schema: { type: object, additionalProperties: true }
+      responses:
+        '201': { description: version created, content: { application/json: { schema: { $ref: '#/components/schemas/FormVersion' } } } }
+        '400': { description: invalid form schema }
+        '403': { description: requires director }
+  /api/v1/forms/{id}/versions/{n}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: n
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      summary: Get a specific version of a form
+      operationId: formsGetVersion
+      tags: [forms]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: version, content: { application/json: { schema: { $ref: '#/components/schemas/FormVersion' } } } }
+        '404': { description: not found }
   /health/live:
     get:
       summary: Liveness probe
@@ -331,3 +484,38 @@ components:
           properties:
             enrolmentToken: { type: string, description: 'One-time, redeem within 24h via /auth/set-credentials' }
             enrolmentExpiresAt: { type: string, format: date-time }
+    Form:
+      type: object
+      required: [id, slug, title, titleHa, scopeKind, scopeIds, status, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        titleHa: { type: string, description: 'Hausa label (first-class)' }
+        scopeKind: { type: string, enum: [state, lga, ward] }
+        scopeIds: { type: array, items: { type: string, format: uuid } }
+        status: { type: string, enum: [draft, deployed, archived] }
+        currentVersionId: { type: string, format: uuid, nullable: true }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateForm:
+      type: object
+      required: [slug, title, titleHa, scopeKind]
+      properties:
+        slug: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        titleHa: { type: string, minLength: 1, maxLength: 200 }
+        scopeKind: { type: string, enum: [state, lga, ward] }
+        scopeIds: { type: array, items: { type: string, format: uuid } }
+    FormVersion:
+      type: object
+      required: [id, formId, versionNumber, schema, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        formId: { type: string, format: uuid }
+        versionNumber: { type: integer, minimum: 1 }
+        schema: { type: object, additionalProperties: true, description: 'Validated by Zod; both label_en and label_ha mandatory on every field' }
+        deployedAt: { type: string, format: date-time, nullable: true }
+        deployedBy: { type: string, format: uuid, nullable: true }
+        createdAt: { type: string, format: date-time }
