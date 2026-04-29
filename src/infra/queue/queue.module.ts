@@ -6,6 +6,7 @@ import type { Redis } from 'ioredis';
 
 export const OCR_QUEUE = Symbol('OCR_QUEUE');
 export const ASR_QUEUE = Symbol('ASR_QUEUE');
+export const MESSAGES_QUEUE = Symbol('MESSAGES_QUEUE');
 
 @Global()
 @Module({
@@ -32,7 +33,18 @@ export const ASR_QUEUE = Symbol('ASR_QUEUE');
       },
       inject: [REDIS_CLIENT],
     },
+    {
+      provide: MESSAGES_QUEUE,
+      useFactory: (_redis: Redis): Queue => {
+        const cfg = loadConfig();
+        return new Queue('messages.dispatch', {
+          connection: { url: cfg.redisUrl },
+          defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+        });
+      },
+      inject: [REDIS_CLIENT],
+    },
   ],
-  exports: [OCR_QUEUE, ASR_QUEUE],
+  exports: [OCR_QUEUE, ASR_QUEUE, MESSAGES_QUEUE],
 })
 export class QueueModule {}
