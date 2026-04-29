@@ -32,6 +32,8 @@ export const users = pgTable(
 
     keyId: text('key_id').notNull(),
     status: text('status').notNull().default('active'),
+    enrolmentTokenHash: bytea('enrolment_token_hash'),
+    enrolmentExpiresAt: timestamp('enrolment_expires_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
