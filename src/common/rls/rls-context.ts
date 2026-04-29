@@ -42,8 +42,15 @@ export async function applyRlsContext(client: PoolClient, ctx: RlsContext): Prom
 }
 
 /**
- * Run `fn` inside a transaction with RLS context applied. The transaction
- * commits on success and rolls back on throw. Use this from services for any
+ * Run `fn` inside a transaction with full per-request context applied:
+ *   1. SET LOCAL ROLE wdc_app — engages RLS even though the dev URL connects
+ *      as the wdc superuser (which would otherwise bypass FORCE RLS).
+ *   2. SET LOCAL app.dek — seeds pgcrypto pgp_sym_* with the data-encryption
+ *      key. Read from KMS_DEK in the env at startup.
+ *   3. SET LOCAL app.current_{role,user_id,lga_id,ward_id} — the GUCs that
+ *      the RLS helper functions read.
+ *
+ * Commits on success, rolls back on throw. Use this from services for any
  * DB work that must enforce RLS — i.e. anything that touches user data.
  */
 export async function withRlsTransaction<T>(
@@ -53,6 +60,11 @@ export async function withRlsTransaction<T>(
 ): Promise<T> {
   await client.query('BEGIN');
   try {
+    await client.query('SET LOCAL ROLE wdc_app');
+    const dek = process.env.KMS_DEK ?? '';
+    if (dek.length > 0) {
+      await client.query(`SELECT set_config('app.dek', $1, true)`, [dek]);
+    }
     await applyRlsContext(client, ctx);
     const out = await fn(client);
     await client.query('COMMIT');

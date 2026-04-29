@@ -11,6 +11,7 @@ const requiredEnv = {
   JWT_PRIVATE_KEY_PATH: './secrets/jwt-private.pem',
   JWT_PUBLIC_KEY_PATH: './secrets/jwt-public.pem',
   ARGON2_PEPPER: 'a'.repeat(32),
+  KMS_DEK: 'k'.repeat(32),
 };
 
 describe('loadConfig', () => {

@@ -19,6 +19,10 @@ export const POSTGRES_DB = Symbol('POSTGRES_DB');
           idleTimeoutMillis: 30_000,
           connectionTimeoutMillis: 5_000,
         });
+        // Per-request role-switch (SET LOCAL ROLE wdc_app) and DEK injection
+        // happen inside withRlsTransaction(); doing it on pool.on('connect')
+        // is fire-and-forget and not guaranteed to complete before the
+        // client is handed out. See ADR / SESSION-LOG.
       },
     },
     {

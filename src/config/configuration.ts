@@ -26,6 +26,9 @@ const ConfigSchema = z.object({
     argon2Pepper: z.string().min(32, 'ARGON2_PEPPER must be ≥ 32 chars'),
     totpIssuer: z.string().default('WDC Kaduna'),
   }),
+  kms: z.object({
+    dek: z.string().min(32, 'KMS_DEK must be ≥ 32 chars'),
+  }),
 });
 
 export type AppConfig = z.infer<typeof ConfigSchema>;
@@ -56,6 +59,9 @@ export function loadConfig(): AppConfig {
       jwtRefreshTtl: process.env.JWT_REFRESH_TTL,
       argon2Pepper: process.env.ARGON2_PEPPER,
       totpIssuer: process.env.TOTP_ISSUER,
+    },
+    kms: {
+      dek: process.env.KMS_DEK,
     },
   };
 
