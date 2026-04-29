@@ -8,6 +8,8 @@ import {
   ConsoleSignInDto,
   MobileSignInDto,
   RefreshDto,
+  SetCredentialsDto,
+  SetCredentialsResponseDto,
   SignOutDto,
   TokenResponseDto,
 } from './auth.dto';
@@ -62,6 +64,21 @@ export class AuthController {
       requestId: reqId(req),
     });
     return toResponse(pair);
+  }
+
+  @Public()
+  @Post('set-credentials')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Redeem an enrolment token to set PIN or password+TOTP' })
+  async setCredentials(@Body() dto: SetCredentialsDto, @Req() req: Request): Promise<SetCredentialsResponseDto> {
+    return this.auth.setCredentials({
+      enrolmentToken: dto.enrolmentToken,
+      pin: dto.pin,
+      password: dto.password,
+      totpSecret: dto.totpSecret,
+      totp: dto.totp,
+      requestId: reqId(req),
+    });
   }
 
   @Public()

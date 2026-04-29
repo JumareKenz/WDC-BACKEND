@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, Length, Matches } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Length, Matches } from 'class-validator';
 import { Sensitive } from '../../common/decorators/sensitive.decorator';
 
 export class ConsoleSignInDto {
@@ -70,3 +70,45 @@ export class TokenResponseDto {
   @ApiProperty() refreshToken!: string;
   @ApiProperty() refreshExpiresAt!: string;
 }
+
+export class SetCredentialsDto {
+  @ApiProperty({ description: 'One-time enrolment token issued at user creation' })
+  @IsString()
+  @Length(40, 100)
+  enrolmentToken!: string;
+
+  /** Mobile users supply this. */
+  @ApiProperty({ required: false, example: '123456' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'pin must be 6 digits' })
+  @Sensitive()
+  pin?: string;
+
+  /** Console users supply password + initial TOTP enrolment proof. */
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Length(12, 256)
+  @Sensitive()
+  password?: string;
+
+  @ApiProperty({ required: false, description: 'Returned by /auth/totp/enrol' })
+  @IsOptional()
+  @IsString()
+  @Length(16, 64)
+  @Sensitive()
+  totpSecret?: string;
+
+  @ApiProperty({ required: false, description: '6-digit code generated from the secret above' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'totp must be 6 digits' })
+  @Sensitive()
+  totp?: string;
+}
+
+export class SetCredentialsResponseDto {
+  @ApiProperty() ok!: true;
+}
+

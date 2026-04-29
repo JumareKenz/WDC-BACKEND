@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { UsersModule } from './modules/users/users.module';
 import { PostgresModule } from './infra/postgres/postgres.module';
 import { RedisModule } from './infra/redis/redis.module';
 import { RequestIdMiddleware, REQUEST_ID_HEADER } from './common/logger/request-id.middleware';
@@ -55,6 +56,7 @@ import { loadConfig } from './config/configuration';
     RedisModule,
     AuditModule,
     AuthModule,
+    UsersModule,
     HealthModule,
   ],
   providers: [

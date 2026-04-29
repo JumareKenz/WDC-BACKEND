@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 import { POSTGRES_POOL } from '../../infra/postgres/postgres.module';
 import { withRlsTransaction, type Role } from '../../common/rls/rls-context';
+import { pgcryptoEncrypt } from '../../common/crypto/pgcrypto';
 import { ArgonService } from './argon.service';
 import { TotpService } from './totp.service';
 import { TokenService, type TokenPair } from './token.service';
@@ -145,6 +146,91 @@ export class AuthService {
       requestId: args.requestId,
     });
     return pair;
+  }
+
+  /**
+   * Redeem an enrolment token to set credentials. Mobile users supply a PIN;
+   * console users (director only) supply password + TOTP secret + a TOTP
+   * proof generated from that secret. The token is invalidated on redemption.
+   */
+  async setCredentials(args: {
+    enrolmentToken: string;
+    pin?: string;
+    password?: string;
+    totpSecret?: string;
+    totp?: string;
+    requestId: string | null;
+  }): Promise<{ ok: true }> {
+    const tokenHash = sha256Buf(args.enrolmentToken);
+    const client = await this.pool.connect();
+    try {
+      const userIdAndRole = await withRlsTransaction(
+        client,
+        { userId: null, role: 'system', lgaId: null, wardId: null },
+        async (c) => {
+          const r = await c.query<{ id: string; role: Role; expires: Date }>(
+            `SELECT id, role, enrolment_expires_at AS expires
+             FROM users WHERE enrolment_token_hash = $1 AND deleted_at IS NULL`,
+            [tokenHash],
+          );
+          const row = r.rows[0];
+          if (!row) throw new UnauthorizedException('enrolment token not recognised');
+          if (row.expires.getTime() <= Date.now()) {
+            throw new UnauthorizedException('enrolment token expired');
+          }
+
+          if (row.role === 'director') {
+            if (!args.password || !args.totpSecret || !args.totp) {
+              throw new BadRequestException(
+                'password, totpSecret and totp are required for director enrolment',
+              );
+            }
+            if (!this.totp.verify(args.totpSecret, args.totp)) {
+              throw new BadRequestException('totp proof did not validate against the secret');
+            }
+            const passwordHash = await this.argon.hash(args.password);
+            const totpCt = await pgcryptoEncrypt(c, args.totpSecret);
+            await c.query(
+              `UPDATE users
+               SET password_hash = $1,
+                   totp_secret_ciphertext = $2,
+                   pin_hash = NULL,
+                   enrolment_token_hash = NULL,
+                   enrolment_expires_at = NULL
+               WHERE id = $3`,
+              [passwordHash, totpCt, row.id],
+            );
+          } else {
+            if (!args.pin) {
+              throw new BadRequestException('pin is required for mobile enrolment');
+            }
+            const pinHash = await this.argon.hash(args.pin);
+            await c.query(
+              `UPDATE users
+               SET pin_hash = $1,
+                   enrolment_token_hash = NULL,
+                   enrolment_expires_at = NULL
+               WHERE id = $2`,
+              [pinHash, row.id],
+            );
+          }
+          return { id: row.id, role: row.role };
+        },
+      );
+
+      await this.audit.append({
+        actorUserId: userIdAndRole.id,
+        actorRole: userIdAndRole.role,
+        eventKind: 'auth.enrolment.completed',
+        targetTable: 'users',
+        targetId: userIdAndRole.id,
+        payload: { method: userIdAndRole.role === 'director' ? 'console' : 'mobile' },
+        requestId: args.requestId,
+      });
+      return { ok: true } as const;
+    } finally {
+      client.release();
+    }
   }
 
   async signOut(args: {
