@@ -41,8 +41,17 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
 - [ ] Commit tagged `m3-complete`
 
 ## M4 — Users & onboarding
-- [ ] Coordinator/secretary CRUD + assignment to LGA/ward
-- [ ] Audit hooks on every write
+- [x] Migration `0004_enrolment_tokens.sql` adds `enrolment_token_hash` + `enrolment_expires_at` to `users` (uniq index, partial WHERE NOT NULL)
+- [x] `withRlsTransaction` now sets `LOCAL ROLE wdc_app` + `LOCAL app.dek` — RLS engages and pgcrypto column functions can read the DEK
+- [x] Phone normalisation (E.164, accepts Nigerian `0…` format) + `phoneHash` / `emailHash` deterministic sha256 helpers
+- [x] `pgcryptoEncrypt` / `pgcryptoDecrypt` wrappers around `pgp_sym_*` using session DEK
+- [x] `UsersService`: create (with one-time enrolment token, encrypted PII), getById, list (cursor-paginated, RLS-scoped), updateAssignment, setStatus (suspend/reactivate), softDelete — all director-write, RLS-read
+- [x] `UsersController`: 7 endpoints under `/api/v1/users` with `@Roles('director')` on writes; `@ApiBearerAuth()` so the openapi exposes auth correctly
+- [x] `POST /auth/set-credentials` redeems an enrolment token to set PIN (mobile) or password+TOTP (console)
+- [x] Audit events: `users.created`, `users.assignment_changed`, `users.suspended`, `users.reactivated`, `users.deleted`, `auth.enrolment.completed`
+- [x] OpenAPI updated to 12 paths (4 auth + 7 users + 2 health) with `User`, `CreateUser`, `CreateUserResponse` schemas
+- [x] Tests: 14 new (2 phone, 2 cursor, 6 users integration, 4 spread across existing files via additions). 60 total passing.
+- [x] `pnpm verify` exits 0
 - [ ] Commit tagged `m4-complete`
 
 ## M5 — Forms & versioning

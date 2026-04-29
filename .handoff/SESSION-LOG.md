@@ -89,3 +89,23 @@ Append-only. Each session writes one entry when it stops.
 - **Audit canonical JSON is load-bearing for M11.** The chain verifier in M11 will regenerate `sha256(prev_hash || canonical_json(event))` and compare hashes; if `canonicalJson()` ever changes its output for the same input, the entire chain becomes "tampered". Don't refactor that function casually. Tests under `tests/unit/audit-canonical.spec.ts` lock down the behaviour.
 - **The dev TOTP DEK** (`app.totp_dek` GUC) isn't set anywhere yet. Console sign-in for a director with a TOTP secret will throw at the `pgp_sym_decrypt` call until M4 wires the dev DEK into the connection setup. That's why no console-flow integration test exists yet — it's a deliberate M4 follow-up.
 - **`JWT_PUBLIC_KEY_PATH` and `JWT_PRIVATE_KEY_PATH` are required** — config validation will reject startup if they're empty. `pnpm gen:jwt-keys` writes them to `secrets/` (gitignored). Production reads from Vault per RUNBOOK §4.
+
+---
+
+## 2026-04-28 (continued, 3) — claude-code (opus 4.7) — M4 Users & onboarding
+
+**Worked on:** users CRUD module, enrolment-token onboarding flow, phone/email crypto helpers, integration tests.
+
+**Tests:** 60 passing across 12 spec files. `pnpm verify` GREEN.
+
+**Stopped because:** M4 done; M5 (Forms & versioning) is next.
+
+**Notes for next agent (M5):**
+
+- **`pool.on('connect')` is fire-and-forget — don't use it for setup that must complete before the client is checked out.** I tried this initially for `SET ROLE wdc_app` + `app.dek` and it would have race-conditioned. Solution: do both inside `withRlsTransaction`, which now issues `SET LOCAL ROLE wdc_app`, `SET LOCAL app.dek = ...`, and the four RLS GUCs at the start of every txn. Production code that touches user data should *only* go through `withRlsTransaction`; never `pool.connect()` + bare queries. The dev superuser would otherwise bypass RLS.
+- **Test fixtures that bypass `withRlsTransaction` need to insert real pgp_sym_encrypt ciphertext for any column that downstream code decrypts.** I lost ~20 min to a "Wrong key or corrupt data" error because the integration test inserted `Buffer.from('x')` as `full_name_ciphertext` directly. The fix in `tests/integration/users.spec.ts` is to use `pgp_sym_encrypt('Director Test', $dek)` in the fixture INSERT. Phone-hash stays raw bytes (it's deterministic sha256, not encrypted).
+- **Decryption uses the *session* GUC `app.dek`.** The `pgcryptoEncrypt` / `pgcryptoDecrypt` helpers in `src/common/crypto/pgcrypto.ts` do `current_setting('app.dek')` — they require an active `withRlsTransaction` (which sets it). Calling them from a raw `client.query` outside the wrapper returns "unrecognised configuration parameter" — diagnostic but ugly. Always wrap.
+- **Cursor pagination format**: `base64url(<iso8601>|<uuid>)`. `decodeCursor` returns `null` on malformed input (don't throw). When extending to other modules (reports in M6, etc.) reuse `__test__.encodeCursor / decodeCursor` from `users.service.ts` — or factor out a shared helper if it shows up a third time.
+- **Enrolment tokens are stored hashed (sha256), one-time-use, 24h TTL.** When the user redeems, the `users.enrolment_token_hash` and `users.enrolment_expires_at` columns are NULLed. Re-presenting the same token then returns 401. The TTL is enforced server-side (no DB-level CHECK because we want the token to remain queryable for audit purposes, not silently disappear).
+- **`requireDirector` lives in `users.service.ts` as a small predicate.** If a third module needs the same gate (forms? investigations?), promote it to `src/common/auth/`. Don't keep inline `if (actor.role !== 'director') throw 403` checks across files.
+- **`BadRequestException`, `ForbiddenException`, `ConflictException`, `NotFoundException`, `UnauthorizedException` from `@nestjs/common`** map to 400/403/409/404/401 cleanly with the validation pipe set up in `main.ts`. Don't manually `res.status(...)`.

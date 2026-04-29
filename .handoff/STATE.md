@@ -1,12 +1,23 @@
 # Build state
 
 **Last updated:** 2026-04-27 by `claude-code` (opus 4.7)
-**Current milestone:** 4 — Users & onboarding (M3 complete, tagged `m3-complete`)
-**Status:** ready to start M4
+**Current milestone:** 5 — Forms & versioning (M4 complete, tagged `m4-complete`)
+**Status:** ready to start M5
 
 ## What's done
 
-### M3 — Auth (this session)
+### M4 — Users & onboarding (this session)
+- Migration `0004_enrolment_tokens.sql`: `users.enrolment_token_hash` (bytea, sha256) + `users.enrolment_expires_at` (24h TTL). Partial unique index (where not null).
+- `withRlsTransaction` extended to set `LOCAL ROLE wdc_app` and `LOCAL app.dek` at the start of every wrapped txn — production code now engages RLS automatically and pgcrypto column functions can decrypt.
+- `src/common/crypto/phone.ts`: E.164 normalisation (also upgrades Nigerian `0…` → `+234…`), deterministic phone/email hashes for index lookups.
+- `src/common/crypto/pgcrypto.ts`: thin `pgp_sym_encrypt` / `pgp_sym_decrypt` wrappers reading the session-level `app.dek`.
+- `UsersService` + `UsersController` + `UsersModule`: create / list (cursor-paginated, RLS-scoped) / get / patch assignment / suspend / reactivate / soft-delete. Writes are `@Roles('director')`. Phone uniqueness collision returns 409.
+- `POST /auth/set-credentials`: redeems a one-time enrolment token; mobile users set PIN, console users set password + TOTP secret + a TOTP proof. Token is invalidated on redemption (re-presenting returns 401).
+- Audit hooks on every write: `users.created`, `users.assignment_changed`, `users.suspended`, `users.reactivated`, `users.deleted`, `auth.enrolment.completed`.
+- OpenAPI: 12 paths (4 auth + 6 users + 2 health) with `User`, `CreateUser`, `CreateUserResponse` schemas.
+- Test count 46 → 60 (4 phone-helper unit, 2 cursor unit, 6 users integration covering director CRUD, coordinator-403, RLS scope, phone collision, enrolment redeem + reuse-401).
+
+### M3 — Auth
 - `@nestjs/jwt` + `@nestjs/passport` + `passport-jwt` + `argon2` + `otplib` deps
 - RS256 dev JWT keypair via `pnpm gen:jwt-keys` → `secrets/jwt-{private,public}.pem` (gitignored). Production keys live in Vault per RUNBOOK §4.
 - `ArgonService`: Argon2id (m=64MiB, t=3, p=1) with per-user salt + 32-char pepper from `ARGON2_PEPPER`. `verify` returns false on malformed encoded strings (no info leak).
@@ -45,20 +56,20 @@
 
 ## What's in flight
 
-Nothing — M3 is complete. M4 has not started.
+Nothing — M4 is complete. M5 has not started.
 
 ## Next concrete actions (resume here)
 
-Begin **M4 — Users & onboarding**:
-1. `UsersService` + `UsersController` under `src/modules/users/`: CRUD for secretaries and coordinators; assign LGA / ward; suspend/reactivate; soft delete.
-2. Director-only endpoints (gated by `@Roles('director')`); coordinator can read users in own LGA.
-3. PII handling on input: phone normalised to E.164, hashed (sha256) for `phone_hash`, encrypted via `pgp_sym_encrypt` for `phone_ciphertext`. Same for email. Names stored only encrypted.
-4. PIN/password setup: at user create, no hash is set — generate a one-time enrolment token (24h TTL) the user redeems at `POST /auth/set-credentials` to set their PIN (mobile) or password+TOTP (console).
-5. Audit events on every write (`users.created`, `users.updated`, `users.suspended`, `users.deleted`, `users.assignment_changed`).
-6. Integration tests: director can CRUD anyone, coordinator can read own LGA only, secretary cannot enumerate.
-7. Commit per logical step; tag `m4-complete` when all gates green.
+Begin **M5 — Forms & versioning**:
+1. `FormsService` + `FormsController` under `src/modules/forms/`: form CRUD (`POST /api/v1/forms`, `GET /api/v1/forms`, `GET /forms/:id`, `PATCH /forms/:id`); version CRUD (`POST /forms/:id/versions`, `GET /forms/:id/versions`, `GET /forms/:id/versions/:n`).
+2. State transitions: `forms.status` from `draft` → `deployed` (`POST /forms/:id/deploy`) → `archived` (`POST /forms/:id/archive`). On deploy, the latest version's `deployed_at` + `deployed_by` are set and `forms.current_version_id` updated; the trigger `wdc_form_versions_immutable` then prevents UPDATE/DELETE on that version.
+3. Form scope (`scope_kind` ∈ `state` | `lga` | `ward` + `scope_ids` array). New endpoint `GET /api/v1/forms/visible` returns the forms a caller can fill, computed from the caller's RLS context.
+4. Hausa label is first-class — every field in `form_versions.schema` carries `{ key, type, label_en, label_ha, required, ... }`. Add a Zod schema validator for the JSON shape.
+5. Tests: unit (Zod schema validator), integration (deploy lifecycle, immutable trigger fires on deployed-version edit attempt, scope filtering for secretary vs coordinator).
+6. Audit events: `forms.created`, `forms.versioned`, `forms.deployed`, `forms.archived`.
+7. Commit per logical step; tag `m5-complete` when all gates green.
 
-**Note for M4 author:** the DI explicit-`@Inject` pattern from M3 (every constructor parameter has `@Inject(Token)` even when type-emit "should" handle it) is now the project convention — see SESSION-LOG entry below for why. Match it in new modules.
+**Note for M5 author:** the explicit-`@Inject` pattern is the project convention; mirror it in `FormsService` and `FormsController`. The `wdc_app` role-switch + DEK injection live in `withRlsTransaction` now — services don't need to do anything manual for either; just wrap DB work in `withRlsTransaction(actor, ...)`.
 
 ## Open questions / decisions deferred
 

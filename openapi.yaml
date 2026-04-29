@@ -53,6 +53,35 @@ paths:
         '200': { description: token pair, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
         '401': { description: invalid credentials }
         '422': { description: validation error }
+  /api/v1/auth/set-credentials:
+    post:
+      summary: Redeem an enrolment token to set PIN or password+TOTP
+      operationId: authSetCredentials
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enrolmentToken]
+              properties:
+                enrolmentToken: { type: string, minLength: 40, maxLength: 100 }
+                pin: { type: string, pattern: '^\d{6}$', description: 'For mobile (secretary/coordinator)' }
+                password: { type: string, minLength: 12, maxLength: 256, description: 'For console (director)' }
+                totpSecret: { type: string, minLength: 16, maxLength: 64 }
+                totp: { type: string, pattern: '^\d{6}$' }
+      responses:
+        '200':
+          description: credentials set
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties: { ok: { type: boolean, enum: [true] } }
+        '400': { description: missing required fields for the user's role }
+        '401': { description: token unrecognised or expired }
   /api/v1/auth/refresh:
     post:
       summary: Rotate refresh token; returns a fresh access+refresh pair
@@ -97,6 +126,134 @@ paths:
                 properties:
                   revoked: { type: integer, minimum: 0 }
         '401': { description: missing or invalid bearer }
+  /api/v1/users:
+    get:
+      summary: List users (RLS-scoped to caller; cursor-paginated)
+      operationId: usersList
+      tags: [users]
+      security: [{ bearer: [] }]
+      parameters:
+        - in: query
+          name: role
+          schema: { type: string, enum: [secretary, coordinator, director] }
+        - in: query
+          name: lgaId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: wardId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: string, description: '1–100, default 25' }
+      responses:
+        '200':
+          description: page of users
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/User' }
+                  nextCursor: { type: string, nullable: true }
+        '401': { description: missing or invalid bearer }
+    post:
+      summary: Create a user; returns a one-time enrolment token (director only)
+      operationId: usersCreate
+      tags: [users]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUser' }
+      responses:
+        '201':
+          description: user created with enrolment token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateUserResponse' }
+        '403': { description: requires director }
+        '409': { description: phone already in use }
+  /api/v1/users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Get one user (RLS-scoped)
+      operationId: usersGet
+      tags: [users]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: user, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '404': { description: not found }
+    delete:
+      summary: Soft-delete a user (director only)
+      operationId: usersDelete
+      tags: [users]
+      security: [{ bearer: [] }]
+      responses:
+        '204': { description: deleted }
+        '403': { description: requires director }
+        '404': { description: not found }
+  /api/v1/users/{id}/assignment:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      summary: Reassign a user to a different LGA / ward (director only)
+      operationId: usersUpdateAssignment
+      tags: [users]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lgaId: { type: string, format: uuid, nullable: true }
+                wardId: { type: string, format: uuid, nullable: true }
+      responses:
+        '200': { description: updated, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '403': { description: requires director }
+  /api/v1/users/{id}/suspend:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Suspend a user (director only)
+      operationId: usersSuspend
+      tags: [users]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: suspended, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '403': { description: requires director }
+  /api/v1/users/{id}/reactivate:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Reactivate a suspended user (director only)
+      operationId: usersReactivate
+      tags: [users]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: reactivated, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '403': { description: requires director }
   /health/live:
     get:
       summary: Liveness probe
@@ -142,3 +299,35 @@ components:
         accessExpiresIn: { type: integer, description: 'Seconds until access expires' }
         refreshToken: { type: string, description: 'Opaque token; rotated on use' }
         refreshExpiresAt: { type: string, format: date-time }
+    User:
+      type: object
+      required: [id, role, fullName, phone, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [secretary, coordinator, director, system] }
+        fullName: { type: string }
+        phone: { type: string, example: '+2348012345678' }
+        email: { type: string, format: email, nullable: true }
+        lgaId: { type: string, format: uuid, nullable: true }
+        wardId: { type: string, format: uuid, nullable: true }
+        status: { type: string, enum: [active, suspended, deleted] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateUser:
+      type: object
+      required: [role, fullName, phone]
+      properties:
+        role: { type: string, enum: [secretary, coordinator, director] }
+        fullName: { type: string, minLength: 1, maxLength: 200 }
+        phone: { type: string, example: '+2348012345678' }
+        email: { type: string, format: email }
+        lgaId: { type: string, format: uuid, description: 'Required for coordinator + secretary' }
+        wardId: { type: string, format: uuid, description: 'Required for secretary' }
+    CreateUserResponse:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required: [enrolmentToken, enrolmentExpiresAt]
+          properties:
+            enrolmentToken: { type: string, description: 'One-time, redeem within 24h via /auth/set-credentials' }
+            enrolmentExpiresAt: { type: string, format: date-time }
