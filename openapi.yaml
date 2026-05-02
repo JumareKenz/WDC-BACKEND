@@ -407,6 +407,69 @@ paths:
       responses:
         '200': { description: version, content: { application/json: { schema: { $ref: '#/components/schemas/FormVersion' } } } }
         '404': { description: not found }
+  /api/v1/audit/anchor:
+    post:
+      summary: Create a new audit anchor (director / scheduler)
+      operationId: auditCreateAnchor
+      tags: [audit]
+      security: [{ bearer: [] }]
+      responses:
+        '200':
+          description: anchor created (or no-op when audit log is empty)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [created]
+                properties:
+                  created: { type: boolean }
+                  id: { type: string }
+                  latestEventId: { type: string }
+                  latestHash: { type: string }
+        '403': { description: requires director / system }
+  /api/v1/audit/anchors:
+    get:
+      summary: List recent audit anchors with verify-on-read status
+      operationId: auditListAnchors
+      tags: [audit]
+      security: [{ bearer: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+      responses:
+        '200':
+          description: anchors (newest first)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, anchoredAt, latestEventId, latestHash, signatureAlg, signingKeyId, signature, verified]
+                  properties:
+                    id: { type: string }
+                    anchoredAt: { type: string, format: date-time }
+                    latestEventId: { type: string }
+                    latestHash: { type: string }
+                    signatureAlg: { type: string }
+                    signingKeyId: { type: string }
+                    signature: { type: string }
+                    verified: { type: boolean }
+        '403': { description: requires director / system }
+  /api/v1/audit/export:
+    get:
+      summary: Sealed CSV export bounded by the most recent anchor
+      operationId: auditExport
+      tags: [audit]
+      security: [{ bearer: [] }]
+      responses:
+        '200':
+          description: CSV stream prefixed with anchor preamble (#-prefixed lines)
+          content:
+            text/csv:
+              schema: { type: string }
+        '403': { description: requires director / system }
   /health/live:
     get:
       summary: Liveness probe

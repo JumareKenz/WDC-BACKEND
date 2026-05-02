@@ -7,3 +7,4 @@ export * from './attachments';
 export * from './audit';
 export * from './messaging';
 export * from './investigations';
+export * from './audit-anchors';

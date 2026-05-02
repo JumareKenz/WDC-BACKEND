@@ -102,10 +102,14 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
 - [x] Commit tagged `m10-complete`
 
 ## M11 — Audit log
-- [ ] Hash-chained appends (`prev_hash`, `hash = sha256(prev_hash || canonical_json)`)
-- [ ] Daily anchor signed digest stored separately
-- [ ] Sealed CSV export
-- [ ] Commit tagged `m11-complete`
+- [x] Hash-chained appends (`prev_hash`, `hash = sha256(prev_hash || canonical_json)`) — landed in M3
+- [x] Migration `0008_audit_anchors.sql`: `audit_anchors` table with append-only trigger + RLS (director-read, system-insert)
+- [x] `AnchorService.createAnchor()` signs the latest `audit_events.hash` with the JWT RSA private key (RSA-SHA256, base64url) and inserts an anchor row
+- [x] `AnchorService.verify()` checks signature; surfaces `verified` per row in the list endpoint and in the CSV preamble
+- [x] `POST /audit/anchor` (director/system trigger), `GET /audit/anchors` (with verify-on-read), `GET /audit/export` (sealed CSV with `# anchor.…` preamble bounded by latest anchor's `latest_event_id`)
+- [x] OpenAPI: 22 paths total (19 prior + 3 audit)
+- [x] `pnpm verify` exits 0 — 121 tests pass (was 116 → +5: anchor sign+verify, tamper detection, coordinator 403 across 3 endpoints, CSV body shape, append-only trigger fires on `audit_anchors` UPDATE/DELETE)
+- [x] Commit tagged `m11-complete`
 
 ## M12 — AI Assistant
 - [ ] `POST /ai/ask` server-side orchestration (no client-side prompt construction)

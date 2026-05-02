@@ -1,12 +1,27 @@
 # Build state
 
-**Last updated:** 2026-04-29 by `opencode` (kimi-k2p6)
-**Current milestone:** 10 — Communications (complete)
-**Status:** ready to start M11
+**Last updated:** 2026-05-02 by `claude-code` (opus 4.7)
+**Current milestone:** 12 — AI Assistant (M11 complete, tagged `m11-complete`)
+**Status:** ready to start M12
 
 ## What's done
 
-### M10 — Communications (this session)
+### M11 — Audit log (this session)
+- Migration `0008_audit_anchors.sql`: new `audit_anchors` table (id BIGINT identity, anchored_at, latest_event_id FK→audit_events, latest_hash, signature_alg, signing_key_id, signature). Append-only trigger; RLS director-read + system-insert. `wdc_app` granted SELECT/INSERT.
+- `AnchorService.createAnchor()` reads the latest `audit_events.hash`, signs with the JWT RSA private key (`SHA256` → base64url), inserts the anchor under `role=system`. Returns `null` on empty audit log.
+- `AnchorService.verify()` checks the stored signature; used both by `GET /audit/anchors` (per-row `verified` field) and the `# anchor.verified_now: true|false` line in the CSV preamble.
+- `AuditController` (3 endpoints, all `@Roles('director', 'system')`):
+  - `POST /api/v1/audit/anchor` — create new anchor
+  - `GET /api/v1/audit/anchors?limit=N` — list newest first, with verify-on-read
+  - `GET /api/v1/audit/export` — sealed CSV stream bounded by latest anchor's `latest_event_id`; preamble lines start with `# anchor.…` so downstream auditors can re-verify offline against the public key.
+- `audit.module.ts` exposes the controller and registers `AnchorService`.
+- 5 new integration tests (anchor create+verify, tamper detection on signature byte flip, coordinator 403 across all 3 endpoints, CSV body shape with `# anchor.verified_now: true`, append-only trigger blocks UPDATE/DELETE on audit_anchors).
+- Drizzle schema mirror added (`audit-anchors.ts`).
+- OpenAPI: 22 paths (19 prior + 3 audit) with anchor list shape declared.
+
+**Decision:** dev signing reuses the JWT RSA private key (`signing_key_id='jwt-dev'`). Production needs a dedicated KMS-managed signing key per RUNBOOK §4 (recorded as a follow-up; ADR-006 to be appended in M13 once the prod key story is decided).
+
+### M10 — Communications (previous session)
 - `MessagingModule` under `src/modules/messaging/`: controller, service, DTOs, adapters, worker.
 - `MessagingController`: 4 endpoints
   - `POST /messages/broadcast` — director-only broadcast composer; encrypts body via inline `pgp_sym_encrypt(..., current_setting('app.dek'))`; resolves recipients by scope (`state`/`lga`/`ward`); creates `messages` + `delivery_attempts` rows.
@@ -132,14 +147,24 @@
 
 ## What's in flight
 
-Nothing — M10 is complete.
+Nothing — M11 is complete.
 
 ## Next concrete actions (resume here)
 
-Begin **M11 — Audit log**:
-1. Daily anchor: scheduled job that reads the latest `audit_events.hash`, signs a digest (RSA or HMAC), stores it in a new `audit_anchors` table with `anchored_at` + `signature`.
-2. Sealed CSV export endpoint (`GET /audit/export` or similar) — director-only, streams audit events as CSV with hash chain verification.
-3. Commit per logical step; tag `m11-complete` when all gates green.
+Begin **M12 — AI Assistant**:
+1. `AiModule` under `src/modules/ai/`: `POST /api/v1/ai/ask` orchestrates a single director-facing question end-to-end.
+2. **Structured retrieval**: `wdc_ro` role (already created in `drizzle/init/01_extensions.sql`) executes a curated set of typed SQL templates (e.g. `lga_rates_for_month`, `ward_outlier_count`). Templates live in `src/modules/ai/queries/*.ts` as parameterised functions returning `{ query_id, params, rows }`. **No string-concatenated dynamic SQL.** Switch to `wdc_ro` via `SET LOCAL ROLE wdc_ro` for the structured-retrieval txn only; the rest of the request stays on `wdc_app`.
+3. **Semantic retrieval**: pgvector cosine top-K over `embeddings` rows (table + IVFFLAT index already exist). M12 should pick a deterministic stub embedder for tests (e.g. hash-to-vector) and gate the real embedder behind an `EMBEDDING_PROVIDER` env var.
+4. **Anthropic call**: model `claude-sonnet-4-6` per `.env.example`. System prompt forbids fabricating numbers and *requires* citations of the form `[source: structured#<query_id>]` / `[source: semantic#<embedding_id>]`. Server validates citations exist before returning the response — strip or refuse if any citation is bogus.
+5. **Response cache**: Redis key `ai:cache:<sha256(question_normalized || retrieval_results_canonical || role_scope)>`, 1h TTL. Cache key shape is committed because future agents will inspect it.
+6. Tests: unit (citation validator, normalised-question hash, query-template determinism), integration (happy path with stubbed Anthropic, citation-missing rejection, cache hit reuses canonical body).
+7. Audit events: `ai.ask.ok`, `ai.ask.refused.bad_citation`, `ai.ask.refused.no_data`.
+8. Commit per logical step; tag `m12-complete` when all gates green.
+
+**Notes for M12 author:**
+- Mirror M3's explicit `@Inject(Token)` pattern on every constructor parameter — Vitest DI fragility.
+- For tests, inject a fake `AnthropicClient` provider that returns a canned response shaped like the real SDK; never let CI hit the live Anthropic endpoint.
+- The `wdc_ro` role has `SELECT` on all tables (granted by 0002_rls.sql line 99) but no INSERT/UPDATE/DELETE; that's the structural guarantee that AI can't mutate state.
 
 ## Open questions / decisions deferred
 

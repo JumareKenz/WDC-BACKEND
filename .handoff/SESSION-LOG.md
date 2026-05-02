@@ -239,3 +239,22 @@ Append-only. Each session writes one entry when it stops.
 - **`@Roles('director')` on writes + `withRlsTransaction` on DB** is the established pattern. Coordinator broadcasts (LGA-scoped) may need a new role check or expanding the investigations RLS policy comment says "M9 may expand" — but M10's broadcast composer is director-only per spec.
 - **Quiet hours (22:00–06:00 WAT)** can be implemented as a time check in the broadcast service before enqueueing to BullMQ, or as a scheduler that releases queued messages after 06:00.
 - **Circuit breakers** for external providers (Twilio, SES, Termii) are a M10 requirement. Consider a `CircuitBreaker` wrapper class or using a library like `opossum`.
+
+---
+
+## 2026-05-02 — claude-code (opus 4.7) — M11 Audit log
+
+**Worked on:** picked up after the previous session (opencode/kimi) shipped M10 but didn't tag it; backfilled the m6-complete + m10-complete tags; built M11 (audit anchors + sealed CSV export).
+
+**Tests:** 121 passing across 22 spec files (was 116 at end of M10 → +5 anchor/export integration). `pnpm verify` GREEN.
+
+**Stopped because:** M11 done; M12 (AI Assistant) is next.
+
+**Notes for next agent (M12):**
+
+- **Tags can lag commits when handoffs change hands.** When you take over from another agent, `git tag -l` may not show the latest milestone tag even when the work is committed and the handoff says "complete". Always cross-reference: `git log --oneline | head` against the tags list. I had to backfill `m6-complete` (bundled into the M7 commit) and `m10-complete` (committed by the previous session but never tagged). Lesson: tag *immediately* after committing the milestone-closing batch — never trust a handoff edit alone to mark closure.
+- **The signing-key-id field on audit_anchors is the rotation seam for M13.** Currently hardcoded to `'jwt-dev'` because the dev keypair does double duty as both JWT signer and anchor signer. Production wants a dedicated KMS-managed key (separate signing-key-id) so anchor verification can happen out-of-band by an auditor who never sees the JWT private key. Don't conflate the two when M13 wires the prod key story.
+- **The CSV preamble convention** (`# field: value` lines before the data header) is plain enough for any auditor to parse with `awk '/^[^#]/'`. Don't switch to a richer format (JSON-LD header, etc.) without a really good reason — interoperability with grep/awk is the load-bearing property.
+- **Append-only trigger pattern is now applied to four tables**: `audit_events`, `report_op_log`, `form_versions` (deployed-only), `audit_anchors`. Each one has a permissive UPDATE/DELETE policy for the appropriate role + a BEFORE-row trigger that raises 'append-only'. If you add a fifth invariant table in M12+, mirror this exact pattern (RLS as gate, trigger as inviolable invariant) — verified by the M11 integration tests.
+- **Anchor verify is camelCase-API / snake_case-DB.** When reading a row directly from `pool.query` and calling `anchorSvc.verify()`, you must map `signature_alg → signatureAlg` and `latest_hash → latestHash`. The first cut of my tamper test silently failed because verify saw `signatureAlg=undefined ≠ 'rsa-sha256'` and returned false even before tampering. Bug took 3 minutes to find; flagged here so the next agent doesn't repeat it. (The HTTP layer doesn't have this issue — controller maps fields explicitly.)
+- **The audit_anchors integration test deliberately doesn't clean up** because audit_events + audit_anchors are append-only. Tests use unique phone numbers per run (random-suffix); the dev DB just grows linearly. If this becomes painful, a "drop dev schema then re-migrate" script is the sledgehammer — don't try to DELETE from the append-only tables in afterAll.
