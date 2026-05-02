@@ -1,4 +1,15 @@
 import 'reflect-metadata';
+import { readFileSync } from 'fs';
+try {
+  const env = readFileSync('.env.local', 'utf-8');
+  for (const line of env.split('\n')) {
+    const m = line.match(/^([^=]+)=(.*)$/);
+    if (m) {
+      const key = m[1]!, val = m[2]!;
+      if (!key.startsWith('#')) process.env[key] = val;
+    }
+  }
+} catch {}
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { ValidationPipe } from '@nestjs/common';

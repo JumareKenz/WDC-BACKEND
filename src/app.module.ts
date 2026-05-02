@@ -17,6 +17,7 @@ import { QueueModule } from './infra/queue/queue.module';
 import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { InvestigationsModule } from './modules/investigations/investigations.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
+import { AiModule } from './modules/ai/ai.module';
 import { RequestIdMiddleware, REQUEST_ID_HEADER } from './common/logger/request-id.middleware';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
@@ -73,6 +74,7 @@ import { loadConfig } from './config/configuration';
     AttachmentsModule,
     InvestigationsModule,
     MessagingModule,
+    AiModule,
     HealthModule,
   ],
   providers: [
