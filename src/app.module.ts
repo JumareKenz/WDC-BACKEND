@@ -18,6 +18,8 @@ import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { InvestigationsModule } from './modules/investigations/investigations.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
 import { AiModule } from './modules/ai/ai.module';
+import { TelemetryModule } from './infra/telemetry/telemetry.module';
+import { MetricsMiddleware } from './infra/telemetry/metrics.middleware';
 import { RequestIdMiddleware, REQUEST_ID_HEADER } from './common/logger/request-id.middleware';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
@@ -75,6 +77,7 @@ import { loadConfig } from './config/configuration';
     InvestigationsModule,
     MessagingModule,
     AiModule,
+    TelemetryModule,
     HealthModule,
   ],
   providers: [
@@ -84,6 +87,6 @@ import { loadConfig } from './config/configuration';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestIdMiddleware).forRoutes('*');
+    consumer.apply(RequestIdMiddleware, MetricsMiddleware).forRoutes('*');
   }
 }

@@ -1,5 +1,5 @@
 import { Controller, Get, Inject } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiExcludeEndpoint } from '@nestjs/swagger';
 import {
   HealthCheck,
   HealthCheckError,
@@ -11,6 +11,7 @@ import type { Redis } from 'ioredis';
 import { POSTGRES_POOL } from '../../infra/postgres/postgres.module';
 import { REDIS_CLIENT } from '../../infra/redis/redis.module';
 import { Public } from '../../common/auth/public.decorator';
+import { MetricsService } from '../../infra/telemetry/metrics.service';
 
 @ApiTags('health')
 @Public()
@@ -20,6 +21,7 @@ export class HealthController {
     private readonly health: HealthCheckService,
     @Inject(POSTGRES_POOL) private readonly pg: Pool,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly metrics: MetricsService,
   ) {}
 
   @Get('live')
@@ -63,5 +65,11 @@ export class HealthController {
         redis: { status: 'down', error: (err as Error).message },
       });
     }
+  }
+
+  @Get('metrics')
+  @ApiExcludeEndpoint()
+  getMetrics() {
+    return this.metrics.getMetrics();
   }
 }

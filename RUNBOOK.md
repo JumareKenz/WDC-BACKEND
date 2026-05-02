@@ -7,8 +7,9 @@ On-call procedures, restore drills, and NDPR right-to-erasure. Sections are fill
 ## 1. On-call basics
 
 - **Pager:** TBD (M13).
-- **Dashboards:** Grafana boards under `ops/dashboards/` once M13 lands.
-- **Health probes:** `/health/live` (process up), `/health/ready` (Postgres + Redis up).
+- **Dashboards:** Grafana dashboard JSON at `dashboards/wdc-backend.json` (import into Grafana).
+- **Metrics endpoint:** `/health/metrics` returns Prometheus-format metrics.
+- **Health probes:** `/health/live` (process up), `/health/ready` (Postgres + Redis up), `/health/metrics` (Prometheus scrape).
 
 ### 1.1 First five minutes of an incident
 
