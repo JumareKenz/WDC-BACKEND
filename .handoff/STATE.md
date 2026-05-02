@@ -1,12 +1,27 @@
 # Build state
 
 **Last updated:** 2026-04-29 by `opencode` (kimi-k2p6)
-**Current milestone:** 9 — Investigations (complete)
-**Status:** ready to start M10
+**Current milestone:** 10 — Communications (complete)
+**Status:** ready to start M11
 
 ## What's done
 
-### M9 — Investigations (this session)
+### M10 — Communications (this session)
+- `MessagingModule` under `src/modules/messaging/`: controller, service, DTOs, adapters, worker.
+- `MessagingController`: 4 endpoints
+  - `POST /messages/broadcast` — director-only broadcast composer; encrypts body via inline `pgp_sym_encrypt(..., current_setting('app.dek'))`; resolves recipients by scope (`state`/`lga`/`ward`); creates `messages` + `delivery_attempts` rows.
+  - `GET /messages/deliveries` — recipient lists own deliveries with cursor pagination (`queued_at DESC, id DESC`).
+  - `POST /messages/deliveries/:id/read` — recipient marks delivery as read.
+  - `GET /messages/deliveries/:id` — get single delivery.
+- Channel adapters: `InAppAdapter`, `EmailAdapter`, `SmsAdapter`, `WhatsAppAdapter` — stub implementations wrapped with `CircuitBreaker` (threshold=5, timeout=30s).
+- Quiet-hours gate: `isQuietHoursWat()` checks WAT (UTC+1) 22:00–06:00; non-urgent broadcasts enqueue delayed BullMQ job via `MESSAGES_QUEUE` (`messages.dispatch`).
+- `dispatchOneSystem()` runs in a separate system-role `withRlsTransaction` after the director broadcast txn commits, because `delivery_attempts` RLS UPDATE is restricted to `system` + recipient ownership.
+- `QueueModule` extended with `MESSAGES_QUEUE` provider/export.
+- Migrations: `0006_messaging_rls.sql` (director INSERT on `delivery_attempts`), `0007_delivery_attempts_update_recipient.sql` (recipient UPDATE on own rows).
+- Integration tests in `tests/integration/messaging.spec.ts`: 6 tests covering broadcast, listing, mark-read, 404s, coordinator denial (403). `pnpm verify` GREEN (116 tests).
+- Fix: constructor injection for adapters required `@Inject()` decorators; plain type-based injection resolved as `undefined` in this NestJS/vitest setup.
+
+### M9 — Investigations (previous session)
 - `InvestigationsModule` under `src/modules/investigations/`: controller, service, DTOs.
 - `InvestigationsController` with 10 endpoints (all `@Roles('director')`):
   - `POST /investigations` — create case
@@ -25,7 +40,7 @@
 - `pnpm verify` GREEN: lint 0 warnings, typecheck clean, openapi:check ok (19 paths).
 - Note: existing `investigations` and `investigation_evidence` tables from M2 schema (0001_init.sql) were leveraged without migration changes; RLS policies already restricted to director+system.
 
-### M8 — Attachments (this session)
+### M8 — Attachments (previous session)
 - `StorageModule` + `StorageService` (S3/MinIO wrapper) under `src/infra/storage/` with `S3_CLIENT` token extracted to `tokens.ts` to break circular dependency.
 - `QueueModule` with `OCR_QUEUE` and `ASR_QUEUE` providers under `src/infra/queue/`; both `@Global()`.
 - `AttachmentsModule`: controller (`POST /attachments/upload` multipart, `GET /attachments/report/:reportId`), service, DTOs (`UploadAttachmentDto`, `AttachmentResponseDto`).
@@ -37,7 +52,7 @@
 - `tsconfig.json` `types` array extended with `"multer"` for `Express.Multer.File`.
 - `pnpm verify` GREEN: 99 tests passing, lint 0 warnings, typecheck clean, openapi:check ok (19 paths).
 
-### M7 — Sync (this session)
+### M7 — Sync (previous session)
 - `SyncModule` + `SyncController` + `SyncService` + `SyncDto` under `src/modules/sync/`.
 - `POST /api/v1/sync/batch`: accepts a batch of ops (`field_set`, `attachment_add`, state transitions) with an idempotency key per batch.
 - **Idempotency**: same `idempotencyKey` returns the original stored `SyncBatchResponseDto` without duplicate writes. Keyed responses stored in `idempotency_keys` (system role).
@@ -117,26 +132,24 @@
 
 ## What's in flight
 
-Nothing — M9 is complete.
+Nothing — M10 is complete.
 
 ## Next concrete actions (resume here)
 
-Begin **M10 — Communications**:
-1. Broadcast composer endpoint (`POST /messages/broadcast`).
-2. Per-channel adapters (in_app, email, SMS, WhatsApp) with circuit breakers.
-3. Delivery + read tracking via `delivery_attempts` table.
-4. Quiet hours (22:00–06:00 WAT) for non-urgent.
-5. Commit per logical step; tag `m10-complete` when all gates green.
+Begin **M11 — Audit log**:
+1. Daily anchor: scheduled job that reads the latest `audit_events.hash`, signs a digest (RSA or HMAC), stores it in a new `audit_anchors` table with `anchored_at` + `signature`.
+2. Sealed CSV export endpoint (`GET /audit/export` or similar) — director-only, streams audit events as CSV with hash chain verification.
+3. Commit per logical step; tag `m11-complete` when all gates green.
 
 ## Open questions / decisions deferred
 
-- 23 LGAs + 255 ward names (M2 will stub; flagged in ARCHITECTURE §10).
 - Production hosting target (Galaxy Backbone? Self-managed K8s? AWS af-south-1?) — relevant to M13.
 - ASR provider for Hausa (self-hosted Whisper-large-v3 in dev assumed; prod TBD) — M8.
+- Audit anchor signing key: use existing JWT RSA keypair (`secrets/jwt-private.pem`) or generate a dedicated anchor key?
 
 ## Blockers
 
-- None blocking — Docker Desktop restart unblocks the last M1 gate.
+- None blocking.
 
 ## Do not touch
 

@@ -95,11 +95,11 @@ Every milestone is "done" only when all its gates are ticked AND `pnpm verify` e
 - [x] Commit tagged `m9-complete`
 
 ## M10 — Communications
-- [ ] Broadcast composer endpoint
-- [ ] Per-channel adapters (in_app, email, SMS, WhatsApp) with circuit breakers
-- [ ] Delivery + read tracking
-- [ ] Quiet hours (22:00–06:00 WAT) for non-urgent
-- [ ] Commit tagged `m10-complete`
+- [x] Broadcast composer endpoint
+- [x] Per-channel adapters (in_app, email, SMS, WhatsApp) with circuit breakers
+- [x] Delivery + read tracking
+- [x] Quiet hours (22:00–06:00 WAT) for non-urgent
+- [x] Commit tagged `m10-complete`
 
 ## M11 — Audit log
 - [ ] Hash-chained appends (`prev_hash`, `hash = sha256(prev_hash || canonical_json)`)
