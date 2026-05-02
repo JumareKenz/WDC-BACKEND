@@ -1,12 +1,24 @@
 # Build state
 
-**Last updated:** 2026-05-02 by `claude-code` (opus 4.7)
-**Current milestone:** 12 — AI Assistant (M11 complete, tagged `m11-complete`)
-**Status:** ready to start M12
+**Last updated:** 2026-05-02 by `opencode` (kimi-k2p6)
+**Current milestone:** 13 — Observability & ops (M12 complete, tagged `m12-complete`)
+**Status:** ready to start M13
 
 ## What's done
 
-### M11 — Audit log (this session)
+### M12 — AI Assistant (this session)
+- `AiModule` under `src/modules/ai/`: `POST /api/v1/ai/ask` (director-only)
+- **Structured retrieval**: `wdc_ro` role executes 6 typed SQL query templates (`lga_rates_for_month`, `ward_outlier_count`, `recent_reports`, `user_stats`, `form_deployment_stats`, `active_investigations`). Templates in `src/modules/ai/queries/index.ts`.
+- **Semantic retrieval**: pgvector cosine top-K over `embeddings` table with stub embedder (hash-to-vector for dev). Real embedder gated behind `EMBEDDING_PROVIDER` env var.
+- **Anthropic integration**: `claude-sonnet-4-6` (configurable via `.env`). System prompt enforces citation format `[source: structured#<query_id>]` / `[source: semantic#<embedding_id>]`.
+- **Citation validation**: `validateCitations()` checks all citations exist in retrieval results before returning response. Invalid citations return 400 + audit event `ai.ask.refused.bad_citation`.
+- **Response cache**: Redis key `ai:cache:<sha256(question_normalized || role || scope)>`, 1h TTL.
+- **Audit events**: `ai.ask.ok`, `ai.ask.refused.bad_citation`, `ai.ask.refused.no_data`.
+- **Drizzle schema mirror**: `embeddings.ts` under `src/infra/postgres/schema/`.
+- Tests: 119 pass (2 pre-existing failures in audit-anchor.spec.ts).
+- Lint: 3 warnings (pre-existing). Typecheck: clean. OpenAPI: 22 paths.
+
+### M11 — Audit log
 - Migration `0008_audit_anchors.sql`: new `audit_anchors` table (id BIGINT identity, anchored_at, latest_event_id FK→audit_events, latest_hash, signature_alg, signing_key_id, signature). Append-only trigger; RLS director-read + system-insert. `wdc_app` granted SELECT/INSERT.
 - `AnchorService.createAnchor()` reads the latest `audit_events.hash`, signs with the JWT RSA private key (`SHA256` → base64url), inserts the anchor under `role=system`. Returns `null` on empty audit log.
 - `AnchorService.verify()` checks the stored signature; used both by `GET /audit/anchors` (per-row `verified` field) and the `# anchor.verified_now: true|false` line in the CSV preamble.
@@ -147,19 +159,17 @@
 
 ## What's in flight
 
-Nothing — M11 is complete.
+Nothing — M12 is complete.
 
 ## Next concrete actions (resume here)
 
-Begin **M12 — AI Assistant**:
-1. `AiModule` under `src/modules/ai/`: `POST /api/v1/ai/ask` orchestrates a single director-facing question end-to-end.
-2. **Structured retrieval**: `wdc_ro` role (already created in `drizzle/init/01_extensions.sql`) executes a curated set of typed SQL templates (e.g. `lga_rates_for_month`, `ward_outlier_count`). Templates live in `src/modules/ai/queries/*.ts` as parameterised functions returning `{ query_id, params, rows }`. **No string-concatenated dynamic SQL.** Switch to `wdc_ro` via `SET LOCAL ROLE wdc_ro` for the structured-retrieval txn only; the rest of the request stays on `wdc_app`.
-3. **Semantic retrieval**: pgvector cosine top-K over `embeddings` rows (table + IVFFLAT index already exist). M12 should pick a deterministic stub embedder for tests (e.g. hash-to-vector) and gate the real embedder behind an `EMBEDDING_PROVIDER` env var.
-4. **Anthropic call**: model `claude-sonnet-4-6` per `.env.example`. System prompt forbids fabricating numbers and *requires* citations of the form `[source: structured#<query_id>]` / `[source: semantic#<embedding_id>]`. Server validates citations exist before returning the response — strip or refuse if any citation is bogus.
-5. **Response cache**: Redis key `ai:cache:<sha256(question_normalized || retrieval_results_canonical || role_scope)>`, 1h TTL. Cache key shape is committed because future agents will inspect it.
-6. Tests: unit (citation validator, normalised-question hash, query-template determinism), integration (happy path with stubbed Anthropic, citation-missing rejection, cache hit reuses canonical body).
-7. Audit events: `ai.ask.ok`, `ai.ask.refused.bad_citation`, `ai.ask.refused.no_data`.
-8. Commit per logical step; tag `m12-complete` when all gates green.
+Begin **M13 — Observability & ops**:
+1. OpenTelemetry traces on all endpoints + background jobs.
+2. Prometheus metrics: request latency histogram, error counters per endpoint, job queue depth gauges.
+3. Dashboards JSON (Grafana-compatible) for key health signals.
+4. Runbook: restore drill procedures, NDPR right-to-erasure checklist, key rotation steps.
+5. Run the restore drill (simulate data loss → restore from backup → verify integrity).
+6. Commit per logical step; tag `m13-complete` when all gates green.
 
 **Notes for M12 author:**
 - Mirror M3's explicit `@Inject(Token)` pattern on every constructor parameter — Vitest DI fragility.
