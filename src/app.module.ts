@@ -18,6 +18,7 @@ import { AttachmentsModule } from './modules/attachments/attachments.module';
 import { InvestigationsModule } from './modules/investigations/investigations.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
 import { AiModule } from './modules/ai/ai.module';
+import { ClientTelemetryModule } from './modules/telemetry/telemetry.module';
 import { TelemetryModule } from './infra/telemetry/telemetry.module';
 import { MetricsMiddleware } from './infra/telemetry/metrics.middleware';
 import { RequestIdMiddleware, REQUEST_ID_HEADER } from './common/logger/request-id.middleware';
@@ -77,6 +78,7 @@ import { loadConfig } from './config/configuration';
     InvestigationsModule,
     MessagingModule,
     AiModule,
+    ClientTelemetryModule,
     TelemetryModule,
     HealthModule,
   ],
