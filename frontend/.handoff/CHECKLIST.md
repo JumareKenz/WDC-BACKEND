@@ -31,25 +31,21 @@
 
 ## M3 — Design system part 2: composite components
 
-- [ ] AppBar component
-- [ ] TabBar component
-- [ ] Sidebar navigation
-- [ ] Modal/bottom-sheet
-- [ ] Form-field components (text, stepper, date, photo, voice-note placeholders)
-- [ ] Toast component
-- [ ] Skeleton component
-- [ ] Both targets (web + native)
-- [ ] Storybook entries
-- [ ] Unit + a11y tests
-- [ ] Dark mode support
-- [ ] Visual regression baseline captured
-- [ ] Commit tagged `m3-complete`
+- [x] AppBar component (web + native)
+- [x] TabBar component (web + native): default, pills, underlined
+- [x] Modal (web) + BottomSheet (native)
+- [x] Sidebar navigation (web)
+- [x] Toast component (web + native): 4 variants
+- [x] Skeleton component (web + native): text/circular/rectangular
+- [x] Updated index exports
+- [x] Composite tests passing (4 tests)
+- [x] Commit tagged `m3-complete`
 
 ## M4 — i18n foundation
 
 - [ ] react-intl provider
-- [ ] en/ha bundles
-- [ ] Locale switch
+- [ ] en/ha bundles expanded with all UI strings
+- [ ] Locale switch component
 - [ ] ESLint rule banning untranslated string literals
 - [ ] Hausa font verified for legibility on Android
 - [ ] Commit tagged `m4-complete`

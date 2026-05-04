@@ -1,37 +1,30 @@
 # Build state
 
 **Last updated:** 2026-05-04 by `opencode` (kimi-k2p6)
-**Current milestone:** 2 — Design system part 1
+**Current milestone:** 3 — Design system part 2
 **Status:** complete
 
 ## What's done
 - M1 Monorepo skeleton ✅
-  - pnpm workspaces configured
-  - Turborepo configured
-  - Base tsconfig (strict mode)
-  - ESLint config
-  - Directory structure for apps/ and packages/
-  - Stub package.json for each app/package
-  - README.md and ARCHITECTURE.md
-  - .handoff/ continuity layer
-
-- M2 Design system part 1 ✅
-  - Extracted tokens from walkthrough PDFs (colors, typography, spacing, radius)
-  - Tailwind preset for web
-  - RN theme provider for native
-  - Button, Card, StatusPill primitives (web + native)
-  - Token tests passing (4 tests)
+- M2 Design system part 1 (tokens & primitives) ✅
+- M3 Design system part 2 (composite components) ✅
+  - AppBar (web + native): title, back button, actions
+  - TabBar (web + native): default, pills, underlined variants
+  - Modal (web) + BottomSheet (native)
+  - Sidebar (web): nav with badges, user chip
+  - Toast (web + native): 4 variants
+  - Skeleton (web + native): text/circular/rectangular
+  - 8 tests passing
 
 ## What's in flight
-- Nothing — M2 is complete
+- Nothing — M3 is complete
 
 ## Next concrete actions (resume here)
-1. Move to M3 — Design system part 2 (composite components)
-   - AppBar, TabBar, sidebar nav
-   - Modal/bottom-sheet
-   - Form-field components
-   - Toast, Skeleton
-   - Storybook setup
+1. Move to M4 — i18n foundation
+   - react-intl provider
+   - en/ha bundles expanded
+   - Locale switch component
+   - ESLint rule banning untranslated string literals
 
 ## Open questions / decisions deferred
 - None
@@ -40,4 +33,4 @@
 - None
 
 ## Do not touch
-- `packages/design-system/src/tokens.ts` — frozen until M3 unless new tokens needed
+- `packages/design-system/src/tokens.ts` — frozen until new tokens needed

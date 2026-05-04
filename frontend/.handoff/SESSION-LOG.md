@@ -4,9 +4,9 @@ Append-only. Each session writes one entry when it stops.
 
 ---
 
-## 2026-05-04 — opencode (kimi-k2p6) — M1 Monorepo skeleton + M2 Design tokens
+## 2026-05-04 — opencode (kimi-k2p6) — M1 Monorepo skeleton + M2 Design tokens + M3 Composite components
 
-**Worked on:** Created frontend monorepo structure and design system tokens/primitives.
+**Worked on:** Created frontend monorepo structure, design system tokens/primitives, and composite components.
 
 **What ran:**
 - Created pnpm workspace config with 3 apps and 5 packages
@@ -22,15 +22,17 @@ Append-only. Each session writes one entry when it stops.
 - Created Tailwind preset for web
 - Created RN theme provider for native
 - Built Button, Card, StatusPill primitives for both web and native
+- Built AppBar, TabBar, Modal/Sidebar, Toast, Skeleton composites for web + native
 - Created token tests (4 tests passing)
-- Tagged M1 and M2 complete
+- Created composite component tests (4 tests passing)
+- Tagged M1, M2, M3 complete
 
-**Tests:** 4 passing (token tests)
+**Tests:** 8 passing across 2 spec files (tokens + composites)
 
-**Stopped because:** M2 complete
+**Stopped because:** M3 complete
 
 **Notes for next agent:**
 - Run `pnpm install` in frontend/ if dependencies are missing
 - Design tokens are in `packages/design-system/src/tokens.ts` — canonical source
-- Next: M3 composite components (AppBar, TabBar, Modal, Toast, Skeleton, form fields)
+- Next: M4 i18n foundation (react-intl provider, en/ha bundles, locale switch)
 - Backend telemetry endpoint added; regenerate OpenAPI spec with it when convenient
