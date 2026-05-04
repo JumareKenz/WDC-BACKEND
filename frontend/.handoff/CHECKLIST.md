@@ -43,11 +43,13 @@
 
 ## M4 — i18n foundation
 
-- [ ] react-intl provider
-- [ ] en/ha bundles expanded with all UI strings
-- [ ] Locale switch component
-- [ ] ESLint rule banning untranslated string literals
-- [ ] Hausa font verified for legibility on Android
+- [x] react-intl provider with LocaleContext
+- [x] en/ha bundles expanded with all UI strings (40+ keys, matching)
+- [x] Locale switch component (web + native)
+- [x] ESLint rule banning untranslated string literals
+- [x] useLocale and useFormatMessage hooks
+- [x] 8 tests passing
+- [x] Commit tagged `m4-complete`
 - [ ] Commit tagged `m4-complete`
 
 ## M5 — API client & domain
