@@ -43,15 +43,15 @@ const Labels = z.object({
 // ---------------------------------------------------------------------------
 
 const VoiceConfig = z.object({
-  question_en: z.string().min(1).max(500),
-  question_ha: z.string().min(1).max(500),
+  question_en: z.string().min(1).max(500).optional(),
+  question_ha: z.string().min(1).max(500).optional(),
 });
 
 const OcrConfig = z.object({
   // Regexes applied to OCR-extracted text to isolate the value for this field.
-  patterns: z.array(z.string().min(1).max(200)).max(20).default([]),
+  patterns: z.array(z.string().min(1).max(200)).max(20).optional(),
   // Nearby printed keywords that anchor the field's location on the page.
-  keywords: z.array(z.string().min(1).max(100)).max(20).default([]),
+  keywords: z.array(z.string().min(1).max(100)).max(20).optional(),
 });
 
 const ValidationRules = z.object({
