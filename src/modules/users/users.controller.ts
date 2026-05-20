@@ -11,6 +11,7 @@ import {
   Post,
   Query,
   Req,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
@@ -40,7 +41,10 @@ export class UsersController {
   @Roles('director')
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a user; returns a one-time enrolment token (director only)' })
-  async create(@Body() dto: CreateUserDto, @Req() req: AuthedRequest): Promise<CreateUserResponseDto> {
+  async create(
+    @Body(new ValidationPipe({ expectedType: CreateUserDto, whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: CreateUserDto,
+    @Req() req: AuthedRequest,
+  ): Promise<CreateUserResponseDto> {
     const result = await this.users.create({
       actor: rlsContextFromRequest(req),
       role: dto.role,
@@ -58,14 +62,18 @@ export class UsersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List users (RLS-scoped to caller)' })
-  async list(@Query() q: ListUsersQueryDto, @Req() req: AuthedRequest) {
+  @Roles('director')
+  @ApiOperation({ summary: 'List users (director only)' })
+  async list(
+    @Query(new ValidationPipe({ expectedType: ListUsersQueryDto, whitelist: true, forbidNonWhitelisted: true, transform: true })) q: ListUsersQueryDto,
+    @Req() req: AuthedRequest,
+  ) {
     return this.users.list(rlsContextFromRequest(req), {
       role: q.role,
       lgaId: q.lgaId,
       wardId: q.wardId,
       cursor: q.cursor,
-      limit: q.limit ? Number.parseInt(q.limit, 10) : undefined,
+      limit: q.limit,
     });
   }
 
@@ -80,7 +88,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Reassign a user to a different LGA / ward (director only)' })
   async updateAssignment(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() dto: UpdateUserAssignmentDto,
+    @Body(new ValidationPipe({ expectedType: UpdateUserAssignmentDto, whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: UpdateUserAssignmentDto,
     @Req() req: AuthedRequest,
   ): Promise<UserResponseDto> {
     return this.users.updateAssignment(

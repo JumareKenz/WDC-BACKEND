@@ -1,12 +1,16 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
   Length,
   Matches,
+  Max,
+  Min,
   ValidateIf,
 } from 'class-validator';
 import { Sensitive } from '../../common/decorators/sensitive.decorator';
@@ -94,13 +98,20 @@ export class ListUsersQueryDto {
   @IsUUID()
   wardId?: string;
 
-  @ApiPropertyOptional({ description: 'Cursor (opaque base64) from previous page' })
+  @ApiPropertyOptional({ description: 'Cursor (opaque base64url) from previous page' })
   @IsOptional()
   @IsString()
+  @Matches(/^[A-Za-z0-9_-]+$/, { message: 'cursor must be a valid base64url string' })
   cursor?: string;
 
   @ApiPropertyOptional({ description: 'Page size (1–100)', default: 25 })
   @IsOptional()
-  @IsString()
-  limit?: string;
+  @Transform(({ value }) => {
+    const n = Number.parseInt(value, 10);
+    return Number.isNaN(n) ? undefined : n;
+  })
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
 }

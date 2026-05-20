@@ -1,19 +1,24 @@
 import React from 'react';
-import { colors, radius, spacing, statusColors } from '../tokens';
+import { radius, spacing, statusColors } from '../tokens';
 
 interface StatusPillProps {
-  kind: 'review' | 'approved' | 'flagged' | 'missing' | 'queued' | 'submitted';
+  kind: 'in_review' | 'reviewed' | 'approved' | 'flagged' | 'missing' | 'queued' | 'submitted' | 'draft' | 'returned' | 'declined' | 'sealed';
   children?: React.ReactNode;
   className?: string;
 }
 
 const kindLabels: Record<string, string> = {
-  review: 'In Review',
+  draft: 'Draft',
+  submitted: 'Submitted',
+  in_review: 'In Review',
+  reviewed: 'Reviewed',
   approved: 'Approved',
   flagged: 'Flagged',
+  returned: 'Returned',
+  declined: 'Declined',
+  sealed: 'Sealed',
   missing: 'Missing',
   queued: 'Queued',
-  submitted: 'Submitted',
 };
 
 export const StatusPill: React.FC<StatusPillProps> = ({

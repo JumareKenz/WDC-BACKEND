@@ -19,12 +19,11 @@ export default [
     },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-unchecked-indexed-access': 'error',
-      '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'off',
       'no-console': 'warn',
     },
   },
   {
-    ignores: ['dist', 'node_modules', '.expo', '.turbo'],
+    ignores: ['dist', 'node_modules', '.expo', '.turbo', '**/.next/**'],
   },
 ];

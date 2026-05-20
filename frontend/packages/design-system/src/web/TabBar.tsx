@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { colors, spacing, radius, typography } from '../tokens';
 
 interface TabItem {

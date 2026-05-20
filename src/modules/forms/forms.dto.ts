@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
@@ -9,6 +10,8 @@ import {
   IsUUID,
   Length,
   Matches,
+  MaxLength,
+  MinLength,
 } from 'class-validator';
 
 const SCOPE_KINDS = ['state', 'lga', 'ward'] as const;
@@ -21,8 +24,8 @@ export class CreateFormDto {
   @Matches(/^[a-z][a-z0-9-]*$/, { message: 'slug must be kebab-case starting with a letter' })
   slug!: string;
 
-  @ApiProperty() @IsString() @Length(1, 200) title!: string;
-  @ApiProperty() @IsString() @Length(1, 200) titleHa!: string;
+  @ApiProperty() @IsString() @MinLength(1) @MaxLength(200) title!: string;
+  @ApiProperty() @IsString() @MinLength(1) @MaxLength(200) titleHa!: string;
 
   @ApiProperty({ enum: SCOPE_KINDS })
   @IsIn(SCOPE_KINDS)
@@ -37,8 +40,8 @@ export class CreateFormDto {
 }
 
 export class UpdateFormDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 200) title?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 200) titleHa?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MinLength(1) @MaxLength(200) title?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MinLength(1) @MaxLength(200) titleHa?: string;
 
   @ApiPropertyOptional({ enum: SCOPE_KINDS })
   @IsOptional()

@@ -42,6 +42,19 @@ integration('Messaging (broadcast + delivery tracking + quiet hours)', () => {
   const coordPin = '445566';
 
   beforeAll(async () => {
+    pool = new Pool({ connectionString: DATABASE_URL });
+    // Defensive cleanup — stale rows from previous aborted runs can bloat
+    // broadcast recipient lists and cause the endpoint to time out.
+    // TRUNCATE CASCADE wipes every user-facing table so the test starts
+    // with a known-empty state regardless of what earlier (possibly crashed)
+    // suites left behind.
+    await pool.query(
+      `TRUNCATE TABLE delivery_attempts, messages, audit_events, audit_anchors,
+        refresh_tokens, reports, report_op_log, investigation_evidence,
+        investigations, idempotency_keys, attachments, form_versions,
+        forms, embeddings, users, wards, lgas CASCADE`,
+    ).catch(() => undefined);
+
     module = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -50,7 +63,6 @@ integration('Messaging (broadcast + delivery tracking + quiet hours)', () => {
     app.setGlobalPrefix('api/v1', { exclude: ['health/live', 'health/ready'] });
     await app.init();
 
-    pool = new Pool({ connectionString: DATABASE_URL });
     const argon = app.get(ArgonService);
     const dek = process.env.KMS_DEK!;
 

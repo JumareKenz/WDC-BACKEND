@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   title: {
-    fontFamily: typography.display,
+    fontFamily: typography.fontFamily,
     fontSize: 18,
     fontWeight: '600',
     color: colors.warmWhite,

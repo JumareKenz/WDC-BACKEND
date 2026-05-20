@@ -25,5 +25,5 @@
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true
   },
-  "exclude": ["node_modules", "dist", ".expo", ".turbo"]
+  "exclude": ["node_modules", "dist", ".expo", ".turbo", "eslint.config.mjs"]
 }

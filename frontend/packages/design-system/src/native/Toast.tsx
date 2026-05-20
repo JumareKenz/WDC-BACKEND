@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   },
   message: {
     flex: 1,
-    fontFamily: typography.ui,
+    fontFamily: typography.fontFamily,
     fontSize: 14,
     color: colors.charcoal,
   },

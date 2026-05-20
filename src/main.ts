@@ -5,8 +5,9 @@ try {
   for (const line of env.split('\n')) {
     const m = line.match(/^([^=]+)=(.*)$/);
     if (m) {
-      const key = m[1]!, val = m[2]!;
-      if (!key.startsWith('#')) process.env[key] = val;
+      const key = m[1];
+      const val = m[2];
+      if (key && !key.startsWith('#')) process.env[key] = val;
     }
   }
 } catch {}
@@ -22,6 +23,13 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
+
+  app.enableCors({
+    origin: config.nodeEnv === 'production'
+      ? ['https://wdc.kaduna.gov.ng']
+      : true,
+    credentials: true,
+  });
 
   app.setGlobalPrefix('api/v1', { exclude: ['health/live', 'health/ready'] });
   app.useGlobalPipes(

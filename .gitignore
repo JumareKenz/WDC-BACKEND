@@ -6,6 +6,11 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+.turbo/
+.next/
+.expo/
+out/
+test-results/
 
 # environment
 .env
@@ -38,3 +43,7 @@ tmp/
 
 # secrets — JWT keypairs etc., dev-only; prod keys live in Vault / AWS SM
 secrets/
+
+# migration output
+migration_issues_report.txt
+backend.err

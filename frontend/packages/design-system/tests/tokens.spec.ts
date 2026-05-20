@@ -3,25 +3,25 @@ import { tokens, getColor, getStatusColor } from '../src/tokens';
 
 describe('tokens', () => {
   it('has all required colors', () => {
-    expect(tokens.colors.forestGreen).toBe('#1A7A4A');
-    expect(tokens.colors.forestGreenDark).toBe('#135A37');
-    expect(tokens.colors.amber).toBe('#E8730A');
-    expect(tokens.colors.aubergine).toBe('#3D1A5C');
+    expect(tokens.colors.forestGreen).toBe('#16a34a');
+    expect(tokens.colors.forestGreenDark).toBe('#15803d');
+    expect(tokens.colors.amber).toBe('#f59e0b');
+    expect(tokens.colors.aubergine).toBe('#a855f7');
   });
 
   it('has status colors', () => {
-    expect(tokens.statusColors.approved).toBe('#1A7A4A');
-    expect(tokens.statusColors.review).toBe('#E8730A');
-    expect(tokens.statusColors.flagged).toBe('#C0392B');
+    expect(tokens.statusColors.approved).toBe('#22c55e');
+    expect(tokens.statusColors.in_review).toBe('#f59e0b');
+    expect(tokens.statusColors.flagged).toBe('#ef4444');
   });
 
   it('getColor returns correct hex', () => {
-    expect(getColor('forestGreen')).toBe('#1A7A4A');
-    expect(getColor('warmWhite')).toBe('#F9F7F4');
+    expect(getColor('forestGreen')).toBe('#16a34a');
+    expect(getColor('warmWhite')).toBe('#fafafa');
   });
 
   it('getStatusColor returns correct hex', () => {
-    expect(getStatusColor('approved')).toBe('#1A7A4A');
-    expect(getStatusColor('review')).toBe('#E8730A');
+    expect(getStatusColor('approved')).toBe('#22c55e');
+    expect(getStatusColor('in_review')).toBe('#f59e0b');
   });
 });

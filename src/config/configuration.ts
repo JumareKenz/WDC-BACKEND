@@ -6,6 +6,7 @@ const ConfigSchema = z.object({
   logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   databaseUrl: z.string().url(),
   databaseReplicaUrl: z.string().url().optional(),
+  dbPoolMax: z.coerce.number().int().positive().default(20),
   redisUrl: z.string().url(),
   s3: z.object({
     endpoint: z.string().url(),
@@ -40,6 +41,7 @@ export function loadConfig(): AppConfig {
     logLevel: process.env.LOG_LEVEL,
     databaseUrl: process.env.DATABASE_URL,
     databaseReplicaUrl: process.env.DATABASE_REPLICA_URL,
+    dbPoolMax: process.env.DB_POOL_MAX,
     redisUrl: process.env.REDIS_URL,
     s3: {
       endpoint: process.env.S3_ENDPOINT,

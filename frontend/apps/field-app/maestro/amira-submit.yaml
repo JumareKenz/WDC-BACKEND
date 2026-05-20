@@ -1,0 +1,34 @@
+appId: com.wdc.fieldapp
+---
+- launchApp
+- assertVisible: "Digital Reporting"
+- tapOn: "Skip"
+- assertVisible: "Select your LGA"
+- tapOn: "Chikun"
+- assertVisible: "Select your Ward"
+- tapOn: "Chikun Ward 1"
+- assertVisible: "Welcome back"
+- tapOn: "Phone Number"
+- inputText: "+2348012345678"
+- tapOn: "PIN"
+- inputText: "123456"
+- tapOn: "Sign In"
+- assertVisible: "Dashboard"
+- tapOn: "New Report"
+- assertVisible: "New Report"
+# Advance through wizard to voice field
+- repeat:
+    times: 7
+    commands:
+      - tapOn: "Next"
+- assertVisible: "Voice Notes"
+- tapOn: "Voice Notes"
+- assertVisible: "Voice Report"
+- tapOn: "Voice Report"
+- assertVisible: "Recording..."
+- tapOn: "Stop Recording"
+- assertVisible: "Transcript"
+- tapOn: "Use This Recording"
+- assertVisible: "New Report"
+- tapOn: "Submit Report"
+- assertVisible: "Submitted"

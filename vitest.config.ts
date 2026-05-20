@@ -9,6 +9,7 @@ export default defineConfig({
     exclude: ['node_modules', 'dist', 'tests/load/**'],
     setupFiles: ['./tests/setup.ts'],
     testTimeout: 30_000,
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],

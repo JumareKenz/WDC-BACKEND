@@ -26,7 +26,7 @@ describe('composite components', () => {
   });
 
   it('tokens are accessible from web exports', () => {
-    expect(tokens.colors.forestGreen).toBe('#1A7A4A');
+    expect(tokens.colors.forestGreen).toBe('#16a34a');
     expect(tokens.spacing['16']).toBe(16);
     expect(tokens.radius.card).toBe(12);
   });

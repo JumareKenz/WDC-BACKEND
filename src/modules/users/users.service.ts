@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -156,8 +157,12 @@ export class UsersService {
     actor: RlsContext,
     filters: { role?: Role; lgaId?: string; wardId?: string; cursor?: string; limit?: number },
   ): Promise<{ items: UserView[]; nextCursor: string | null }> {
+    requireDirector(actor);
     const limit = Math.min(Math.max(filters.limit ?? 25, 1), 100);
     const cursorTs = filters.cursor ? decodeCursor(filters.cursor) : null;
+    if (filters.cursor && !cursorTs) {
+      throw new BadRequestException('invalid cursor');
+    }
 
     const client = await this.pool.connect();
     try {
@@ -197,7 +202,19 @@ export class UsersService {
 
       const more = rows.length > limit;
       const slice = more ? rows.slice(0, limit) : rows;
-      const items = await Promise.all(slice.map((r) => this.viewFromRow(r)));
+      const items = (
+        await Promise.all(
+          slice.map(async (r) => {
+            try {
+              return await this.viewFromRow(r);
+            } catch {
+              // Skip rows with corrupted / unreadable ciphertext rather than
+              // crashing the entire list endpoint (defence in depth).
+              return null;
+            }
+          }),
+        )
+      ).filter(Boolean) as UserView[];
       const last = slice[slice.length - 1];
       const nextCursor = more && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null;
       return { items, nextCursor };

@@ -11,7 +11,7 @@
  *   - create returns a one-time enrolment token + expiry
  *   - enrolment token redemption sets a PIN that allows sign-in
  *   - re-using a redeemed enrolment token returns 401
- *   - coordinator can list users in own LGA only (RLS-scoped)
+ *   - coordinator cannot list users (Roles guard, 403)
  *   - coordinator cannot create (Roles guard, 403)
  *   - phone uniqueness collision returns 409
  */
@@ -191,15 +191,19 @@ integration('Users CRUD + RLS scope', () => {
       .expect(409);
   }, 30_000);
 
-  it('coordinator lists users in own LGA only (RLS scope)', async () => {
-    const res = await request(app.getHttpServer())
+  it('coordinator cannot list users (403)', async () => {
+    await request(app.getHttpServer())
       .get('/api/v1/users')
       .set('Authorization', `Bearer ${coordinatorAccess}`)
+      .expect(403);
+  });
+
+  it('director can list users', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${directorAccess}`)
       .expect(200);
-    const lgas = new Set((res.body.items as Array<{ lgaId: string | null }>).map((u) => u.lgaId).filter(Boolean));
-    // Coordinator should never see lgaB rows; whatever's in the result is
-    // either lgaA or null (director / state-wide).
-    for (const id of lgas) expect(id === lgaA).toBe(true);
+    expect(Array.isArray(res.body.items)).toBe(true);
   });
 
   it('director updates assignment, suspend, reactivate, delete', async () => {

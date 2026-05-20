@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { colors, spacing, radius, typography } from '../tokens';
 
 interface TabItem {
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.forestGreen,
   },
   label: {
-    fontFamily: typography.ui,
+    fontFamily: typography.fontFamily,
     fontSize: 14,
     color: colors.charcoal2,
   },

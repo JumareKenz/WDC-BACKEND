@@ -18,6 +18,7 @@ tailwindColors['status-queued'] = { DEFAULT: colors.aubergine };
 tailwindColors['status-submitted'] = { DEFAULT: colors.forestGreen };
 
 export const wdcPreset: Config = {
+  content: [],
   darkMode: 'class',
   theme: {
     extend: {

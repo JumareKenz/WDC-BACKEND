@@ -1,12 +1,20 @@
 {
   "name": "wdc-frontend",
-  "version": "0.1.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "description": "WDC Kaduna State Frontend — Field App + State Console",
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "react-native-screens": "~3.31.0",
+      "next": "^15.5.15",
+      "tar": "^7.5.11",
+      "@xmldom/xmldom": "^0.8.13"
+    }
   },
   "scripts": {
     "dev": "turbo run dev",
@@ -21,6 +29,9 @@
     "@commitlint/cli": "^19.0.0",
     "@commitlint/config-conventional": "^19.0.0",
     "@types/node": "^20.17.0",
+    "@types/react": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.1",
+    "@typescript-eslint/parser": "^8.59.1",
     "eslint": "^9.14.0",
     "husky": "^9.0.0",
     "prettier": "^3.3.3",

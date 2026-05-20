@@ -66,7 +66,7 @@ export class AuditController {
         }>(
           `SELECT id::text AS id, anchored_at, latest_event_id::text AS latest_event_id,
                   latest_hash, signature_alg, signing_key_id, signature
-           FROM audit_anchors ORDER BY id DESC LIMIT $1`,
+           FROM audit_anchors ORDER BY audit_anchors.id DESC LIMIT $1`,
           [limit],
         );
         return r.rows;
@@ -115,7 +115,7 @@ export class AuditController {
         }>(
           `SELECT id::text AS id, anchored_at, latest_event_id::text AS latest_event_id,
                   latest_hash, signature_alg, signing_key_id, signature
-           FROM audit_anchors ORDER BY id DESC LIMIT 1`,
+           FROM audit_anchors ORDER BY audit_anchors.id DESC LIMIT 1`,
         );
         const anchor = anchorRow.rows[0];
 
@@ -164,7 +164,7 @@ export class AuditController {
         }>(
           `SELECT id::text AS id, occurred_at, actor_user_id, actor_role,
                   event_kind, target_table, target_id, prev_hash, hash
-           FROM audit_events WHERE id <= $1 ORDER BY id ASC`,
+           FROM audit_events WHERE audit_events.id <= $1 ORDER BY audit_events.id ASC`,
           [anchor.latest_event_id],
         );
         for (const row of cursor.rows) {

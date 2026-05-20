@@ -1,13 +1,13 @@
 {
   "name": "@wdc/i18n",
-  "version": "0.1.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "main": "./src/index.tsx",
   "types": "./src/index.tsx",
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "dependencies": {
     "react-intl": "^7.0.0"

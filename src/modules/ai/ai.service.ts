@@ -234,7 +234,8 @@ Do not fabricate numbers or facts. If you don't know, say so.`;
 
   private formatSnippet(rows: Record<string, unknown>[]): string {
     if (rows.length === 0) return '';
-    const sample = rows[0]!;
+    const sample = rows[0];
+    if (!sample) return '';
     const preview = Object.entries(sample)
       .filter(([, v]) => v !== null && v !== undefined)
       .slice(0, 5)

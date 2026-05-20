@@ -1,0 +1,18 @@
+appId: com.wdc.fieldapp
+---
+- launchApp
+- assertVisible: "Digital Reporting"
+- tapOn: "Skip"
+- assertVisible: "Select your LGA"
+- tapOn: "Chikun"
+- assertVisible: "Select your Ward"
+- tapOn: "Chikun Ward 1"
+- assertVisible: "Welcome back"
+- tapOn: "Phone Number"
+- inputText: "+2348012345678"
+- tapOn: "PIN"
+- inputText: "123456"
+- tapOn: "Sign In"
+- assertVisible: "Dashboard"
+- tapOn: "Sign Out"
+- assertVisible: "Welcome back"

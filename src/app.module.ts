@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
 import { HealthModule } from './modules/health/health.module';
@@ -24,6 +24,7 @@ import { MetricsMiddleware } from './infra/telemetry/metrics.middleware';
 import { RequestIdMiddleware, REQUEST_ID_HEADER } from './common/logger/request-id.middleware';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
+import { PoolBackpressureInterceptor } from './common/interceptors/pool-backpressure.interceptor';
 import { loadConfig } from './config/configuration';
 
 @Module({
@@ -85,6 +86,7 @@ import { loadConfig } from './config/configuration';
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: PoolBackpressureInterceptor },
   ],
 })
 export class AppModule implements NestModule {

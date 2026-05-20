@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Req,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FormsService } from './forms.service';
@@ -39,7 +40,10 @@ export class FormsController {
   @Roles('director')
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a draft form (director only)' })
-  async create(@Body() dto: CreateFormDto, @Req() req: AuthedRequest): Promise<FormResponseDto> {
+  async create(
+    @Body(new ValidationPipe({ expectedType: CreateFormDto, whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: CreateFormDto,
+    @Req() req: AuthedRequest,
+  ): Promise<FormResponseDto> {
     return this.forms.create({
       actor: rlsContextFromRequest(req),
       slug: dto.slug,
@@ -77,7 +81,7 @@ export class FormsController {
   @ApiOperation({ summary: 'Update form metadata or scope (director only)' })
   async update(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() dto: UpdateFormDto,
+    @Body(new ValidationPipe({ expectedType: UpdateFormDto, whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: UpdateFormDto,
     @Req() req: AuthedRequest,
   ): Promise<FormResponseDto> {
     return this.forms.update(rlsContextFromRequest(req), id, dto, reqId(req));

@@ -500,6 +500,175 @@ paths:
           description: All dependencies responsive
         '503':
           description: One or more dependencies unhealthy
+  /api/v1/reports:
+    get:
+      summary: List reports (RLS-scoped)
+      operationId: reportsList
+      tags: [reports]
+      security: [{ bearer: [] }]
+      parameters:
+        - in: query
+          name: state
+          schema: { type: string, enum: [draft, submitted, in_review, approved, returned, sealed] }
+      responses:
+        '200':
+          description: reports array
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Report' } }
+    post:
+      summary: Create a draft report
+      operationId: reportsCreate
+      tags: [reports]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateReport' }
+      responses:
+        '201': { description: report created, content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } } }
+  /api/v1/reports/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: Get one report
+      operationId: reportsGet
+      tags: [reports]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: report, content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } } }
+  /api/v1/reports/{id}/submit:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Submit a draft report
+      operationId: reportsSubmit
+      tags: [reports]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: submitted, content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } } }
+  /api/v1/reports/{id}/open-review:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Open review on a submitted report
+      operationId: reportsOpenReview
+      tags: [reports]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: in_review, content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } } }
+  /api/v1/reports/{id}/approve:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Approve a report under review
+      operationId: reportsApprove
+      tags: [reports]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: approved, content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } } }
+  /api/v1/reports/{id}/return:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Return a report under review
+      operationId: reportsReturn
+      tags: [reports]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReturnReport' }
+      responses:
+        '200': { description: returned, content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } } }
+  /api/v1/reports/{id}/edit-returned:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      summary: Move a returned report back to draft
+      operationId: reportsEditReturned
+      tags: [reports]
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: draft, content: { application/json: { schema: { $ref: '#/components/schemas/Report' } } } }
+  /api/v1/telemetry:
+    post:
+      summary: Log a client telemetry event
+      operationId: telemetryLog
+      tags: [telemetry]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TelemetryLog' }
+      responses:
+        '200': { description: logged, content: { application/json: { schema: { type: object, properties: { ok: { type: boolean } } } } } }
+  /ai/ask:
+    post:
+      summary: Ask the AI assistant
+      operationId: aiAsk
+      tags: [ai]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AskAi' }
+      responses:
+        '200': { description: answer, content: { application/json: { schema: { $ref: '#/components/schemas/AiResponse' } } } }
+  /messages/broadcast:
+    post:
+      summary: Broadcast a message (director only)
+      operationId: messagesBroadcast
+      tags: [messages]
+      security: [{ bearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BroadcastMessage' }
+      responses:
+        '201': { description: broadcast queued, content: { application/json: { schema: { $ref: '#/components/schemas/BroadcastResponse' } } } }
+  /messages/deliveries:
+    get:
+      summary: List delivery attempts for the current user
+      operationId: messagesListDeliveries
+      tags: [messages]
+      security: [{ bearer: [] }]
+      parameters:
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: string }
+      responses:
+        '200':
+          description: deliveries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListDeliveriesResponse' }
 components:
   securitySchemes:
     bearer:
@@ -582,3 +751,102 @@ components:
         deployedAt: { type: string, format: date-time, nullable: true }
         deployedBy: { type: string, format: uuid, nullable: true }
         createdAt: { type: string, format: date-time }
+    Report:
+      type: object
+      required: [id, formVersionId, wardId, submittedBy, submissionMethod, state, canonical, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        formVersionId: { type: string, format: uuid }
+        wardId: { type: string, format: uuid }
+        submittedBy: { type: string, format: uuid }
+        submissionMethod: { type: string, enum: [amira, wizard, snap] }
+        state: { type: string, enum: [draft, submitted, in_review, approved, returned, sealed] }
+        sealedAt: { type: string, format: date-time, nullable: true }
+        canonical: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateReport:
+      type: object
+      required: [formVersionId, submissionMethod]
+      properties:
+        formVersionId: { type: string, format: uuid }
+        submissionMethod: { type: string, enum: [amira, wizard, snap] }
+        wardId: { type: string, format: uuid }
+    ReturnReport:
+      type: object
+      required: [notes]
+      properties:
+        notes: { type: string, minLength: 1, maxLength: 2000 }
+    TelemetryLog:
+      type: object
+      required: [level, message]
+      properties:
+        level: { type: string, enum: [error, warn, debug, info] }
+        message: { type: string }
+        metadata: { type: object, additionalProperties: true }
+    AskAi:
+      type: object
+      required: [question]
+      properties:
+        question: { type: string, minLength: 1, maxLength: 2000 }
+    AiResponse:
+      type: object
+      required: [answer, sources]
+      properties:
+        answer: { type: string }
+        sources:
+          type: array
+          items:
+            type: object
+            required: [type, snippet]
+            properties:
+              type: { type: string, enum: [structured, semantic] }
+              queryId: { type: string }
+              embeddingId: { type: string }
+              snippet: { type: string }
+        cached: { type: boolean }
+    BroadcastMessage:
+      type: object
+      required: [body, channels, scopeKind]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 4000 }
+        channels:
+          type: array
+          items: { type: string, enum: [in_app, email, sms, whatsapp] }
+          minItems: 1
+        scopeKind: { type: string, enum: [state, lga, ward] }
+        scopeIds:
+          type: array
+          items: { type: string, format: uuid }
+        urgent: { type: boolean }
+    BroadcastResponse:
+      type: object
+      required: [messageId, conversationId, recipientCount, deliveryCount, queuedDuringQuietHours]
+      properties:
+        messageId: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+        recipientCount: { type: integer }
+        deliveryCount: { type: integer }
+        queuedDuringQuietHours: { type: boolean }
+    ListDeliveriesResponse:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, channel, status, payload, queuedAt]
+            properties:
+              id: { type: string, format: uuid }
+              channel: { type: string }
+              status: { type: string }
+              providerRef: { type: string, nullable: true }
+              payload: { type: object, additionalProperties: true }
+              queuedAt: { type: string, format: date-time }
+              sentAt: { type: string, format: date-time, nullable: true }
+              deliveredAt: { type: string, format: date-time, nullable: true }
+              readAt: { type: string, format: date-time, nullable: true }
+              failedAt: { type: string, format: date-time, nullable: true }
+              errorMessage: { type: string, nullable: true }
+        nextCursor: { type: string, nullable: true }

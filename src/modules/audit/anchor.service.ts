@@ -56,7 +56,7 @@ export class AnchorService implements OnModuleInit {
         { userId: null, role: 'system', lgaId: null, wardId: null },
         async (c) => {
           const latest = await c.query<{ id: string; hash: string }>(
-            `SELECT id::text AS id, hash FROM audit_events ORDER BY id DESC LIMIT 1`,
+            `SELECT id::text AS id, hash FROM audit_events ORDER BY audit_events.id DESC LIMIT 1`,
           );
           const row = latest.rows[0];
           if (!row) return null;

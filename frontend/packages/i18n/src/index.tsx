@@ -54,7 +54,7 @@ export const LocaleProvider: React.FC<LocaleProviderProps> = ({
   const toggleLocale = useCallback(() => {
     const currentIndex = supportedLocales.indexOf(locale);
     const nextIndex = (currentIndex + 1) % supportedLocales.length;
-    setLocale(supportedLocales[nextIndex]);
+    setLocale(supportedLocales[nextIndex]!);
   }, [locale, setLocale]);
 
   const value = useMemo(
