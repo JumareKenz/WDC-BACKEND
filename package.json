@@ -25,7 +25,11 @@
     "drizzle:migrate": "tsx scripts/migrate.ts",
     "drizzle:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed.ts",
+    "seed:users": "tsx scripts/seed-users.ts",
     "gen:jwt-keys": "tsx scripts/gen-jwt-keys.ts",
+    "migrate:mvp": "tsx scripts/migrate_mvp.ts",
+    "verify:migration": "tsx scripts/verify_migration.ts",
+    "flag:migration": "tsx scripts/flag_migration_issues.ts",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm openapi:check"
   },
   "dependencies": {
@@ -90,5 +94,14 @@
     "typescript": "^5.6.3",
     "vitest": "^2.1.4",
     "yaml": "^2.6.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "^0.45.2",
+      "glob": "^10.5.0",
+      "multer": "^2.1.1",
+      "picomatch": "^4.0.4",
+      "lodash": "^4.18.0"
+    }
   }
 }

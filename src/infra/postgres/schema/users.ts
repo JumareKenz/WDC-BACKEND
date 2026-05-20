@@ -3,6 +3,7 @@ import {
   pgTable,
   uuid,
   text,
+  boolean,
   timestamp,
   index,
   uniqueIndex,
@@ -32,6 +33,7 @@ export const users = pgTable(
 
     keyId: text('key_id').notNull(),
     status: text('status').notNull().default('active'),
+    mustResetPassword: boolean('must_reset_password').notNull().default(false),
     enrolmentTokenHash: bytea('enrolment_token_hash'),
     enrolmentExpiresAt: timestamp('enrolment_expires_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
